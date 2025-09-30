@@ -21,6 +21,16 @@ const (
 	TIMELIB_SPECIAL_WEEKDAY                   = 1
 	TIMELIB_SPECIAL_DAY_OF_WEEK_IN_MONTH      = 2
 	TIMELIB_SPECIAL_LAST_DAY_OF_WEEK_IN_MONTH = 3
+
+	// Time constants
+	MINS_PER_HOUR   = 60
+	SECS_PER_DAY    = 86400
+	SECS_PER_HOUR   = 3600
+	USECS_PER_HOUR  = 3600000000
+	DAYS_PER_WEEK   = 7
+	DAYS_PER_YEAR   = 365
+	DAYS_PER_LYEAR  = 366
+	MONTHS_PER_YEAR = 12
 )
 
 // Error codes
@@ -453,6 +463,244 @@ func SetTimezone(t *Time, tz *TzInfo) {
 func ConvertTime(t *Time) time.Time {
 	// For now, return zero time - this will be implemented later
 	return time.Time{}
+}
+
+// Helper functions and lookup tables for date calculations
+
+// Lookup tables for day of week calculations
+var mTableCommon = [13]int{-1, 0, 3, 3, 6, 1, 4, 6, 2, 5, 0, 3, 5} // 1 = jan
+var mTableLeap = [13]int{-1, 6, 2, 3, 6, 1, 4, 6, 2, 5, 0, 3, 5}   // 1 = jan
+
+// Lookup tables for day of year calculations
+var dTableCommon = [13]int{0, 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334}
+var dTableLeap = [13]int{0, 0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335}
+
+// Lookup tables for days in month
+var mlTableCommon = [13]int{0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+var mlTableLeap = [13]int{0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+
+// positiveMod returns positive modulo result
+func positiveMod(x, y int64) int64 {
+	if y == 0 {
+		return 0
+	}
+	tmp := x % y
+	if tmp < 0 {
+		if y > 0 {
+			tmp += y
+		} else {
+			tmp -= y // For negative divisors, subtract to get positive result
+		}
+	}
+	return tmp
+}
+
+// centuryValue calculates century value for day of week calculation
+func centuryValue(j int64) int64 {
+	return 6 - positiveMod(j, 4)*2
+}
+
+// IsLeapYear determines if a year is a leap year
+func IsLeapYear(y int64) bool {
+	return y%4 == 0 && (y%100 != 0 || y%400 == 0)
+}
+
+// DayOfWeekEx calculates day of week with ISO option
+func DayOfWeekEx(y, m, d int64, iso bool) int64 {
+	// Only valid for Gregorian calendar
+	c1 := centuryValue(positiveMod(y, 400) / 100)
+	y1 := positiveMod(y, 100)
+
+	var m1 int64
+	if IsLeapYear(y) {
+		m1 = int64(mTableLeap[m])
+	} else {
+		m1 = int64(mTableCommon[m])
+	}
+
+	dow := positiveMod((c1 + y1 + m1 + (y1 / 4) + d), 7)
+
+	if iso {
+		if dow == 0 {
+			dow = 7
+		}
+	}
+	return dow
+}
+
+// DayOfWeek calculates day of week (0=Sunday..6=Saturday)
+func DayOfWeek(y, m, d int64) int64 {
+	return DayOfWeekEx(y, m, d, false)
+}
+
+// IsoDayOfWeek calculates ISO day of week (1=Monday, 7=Sunday)
+func IsoDayOfWeek(y, m, d int64) int64 {
+	return DayOfWeekEx(y, m, d, true)
+}
+
+// DayOfYear calculates day of year according to y-m-d (0=Jan 1st..364/365=Dec 31st)
+func DayOfYear(y, m, d int64) int64 {
+	if IsLeapYear(y) {
+		return int64(dTableLeap[m]) + d - 1
+	}
+	return int64(dTableCommon[m]) + d - 1
+}
+
+// DaysInMonth calculates number of days in month m for year y
+func DaysInMonth(y, m int64) int64 {
+	if IsLeapYear(y) {
+		return int64(mlTableLeap[m])
+	}
+	return int64(mlTableCommon[m])
+}
+
+// ValidTime checks if h, i, s fit in valid range
+func ValidTime(h, i, s int64) bool {
+	return h >= 0 && h <= 23 && i >= 0 && i <= 59 && s >= 0 && s <= 59
+}
+
+// ValidDate checks if y, m, d form a valid date
+func ValidDate(y, m, d int64) bool {
+	if m < 1 || m > 12 || d < 1 {
+		return false
+	}
+	return d <= DaysInMonth(y, m)
+}
+
+// IsoWeekFromDate calculates ISO week from date
+func IsoWeekFromDate(y, m, d int64) (iw, iy int64) {
+	yLeap := IsLeapYear(y)
+	prevYLeap := IsLeapYear(y - 1)
+	doy := DayOfYear(y, m, d) + 1
+	if yLeap && m > 2 {
+		doy++
+	}
+	jan1weekday := DayOfWeek(y, 1, 1)
+	weekday := DayOfWeek(y, m, d)
+	if weekday == 0 {
+		weekday = 7
+	}
+	if jan1weekday == 0 {
+		jan1weekday = 7
+	}
+
+	// Find if Y M D falls in YearNumber Y-1, WeekNumber 52 or 53
+	if doy <= (8-jan1weekday) && jan1weekday > 4 {
+		iy = y - 1
+		if jan1weekday == 5 || (jan1weekday == 6 && prevYLeap) {
+			iw = 53
+		} else {
+			iw = 52
+		}
+	} else {
+		iy = y
+	}
+
+	// Find if Y M D falls in YearNumber Y+1, WeekNumber 1
+	if iy == y {
+		daysInYear := int64(365)
+		if yLeap {
+			daysInYear = 366
+		}
+		yLeapInt := int64(0)
+		if yLeap {
+			yLeapInt = 1
+		}
+		if (daysInYear - (doy - yLeapInt)) < (4 - weekday) {
+			iy = y + 1
+			iw = 1
+			return
+		}
+	}
+
+	// Find if Y M D falls in YearNumber Y, WeekNumber 1 through 53
+	if iy == y {
+		j := doy + (7 - weekday) + (jan1weekday - 1)
+		iw = j / 7
+		if jan1weekday > 4 {
+			iw -= 1
+		}
+	}
+
+	return
+}
+
+// IsoDateFromDate calculates ISO date from date
+func IsoDateFromDate(y, m, d int64) (iy, iw, id int64) {
+	iw, iy = IsoWeekFromDate(y, m, d)
+	id = IsoDayOfWeek(y, m, d)
+	return
+}
+
+// DayNrFromWeekNr calculates day number from week number
+func DayNrFromWeekNr(iy, iw, id int64) int64 {
+	// Figure out the dayofweek for y-1-1
+	dow := DayOfWeek(iy, 1, 1)
+	// then use that to figure out the offset for day 1 of week 1
+	var day int64
+	if dow > 4 {
+		day = 0 - (dow - 7)
+	} else {
+		day = 0 - dow
+	}
+
+	// Add weeks and days
+	return day + ((iw - 1) * 7) + id
+}
+
+// DateFromIsoDate calculates date from ISO date
+func DateFromIsoDate(iy, iw, id int64) (y, m, d int64) {
+	daynr := DayNrFromWeekNr(iy, iw, id) + 1
+	var table []int64
+	var isLeapYear bool
+
+	// Invariant: isLeapYear == IsLeapYear(*y)
+	y = iy
+	isLeapYear = IsLeapYear(y)
+
+	// Establish invariant that daynr >= 0
+	for daynr <= 0 {
+		y -= 1
+		isLeapYear = IsLeapYear(y)
+		if isLeapYear {
+			daynr += 366
+		} else {
+			daynr += 365
+		}
+	}
+
+	// Establish invariant that daynr <= number of days in *yr
+	for (isLeapYear && daynr > 366) || (!isLeapYear && daynr > 365) {
+		if isLeapYear {
+			daynr -= 366
+		} else {
+			daynr -= 365
+		}
+		y += 1
+		isLeapYear = IsLeapYear(y)
+	}
+
+	if isLeapYear {
+		table = make([]int64, 13)
+		for i := 0; i < 13; i++ {
+			table[i] = int64(mlTableLeap[i])
+		}
+	} else {
+		table = make([]int64, 13)
+		for i := 0; i < 13; i++ {
+			table[i] = int64(mlTableCommon[i])
+		}
+	}
+
+	// Establish invariant that daynr <= number of days in *m
+	m = 1
+	for daynr > table[m] {
+		daynr -= table[m]
+		m += 1
+	}
+
+	d = daynr
+	return
 }
 
 // ConvertFromTime converts Go's time.Time to a Time structure

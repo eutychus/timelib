@@ -56,15 +56,27 @@ This is a Go port of the C-based timelib library originally developed by Derick 
 **Challenge**: C library uses manual memory management, Go uses garbage collection.
 **Solution**: Leveraged Go's built-in memory management while maintaining API compatibility.
 
-## Next Steps (Phase 2)
+## ✅ Phase 2: Core Date/Time Functions Complete
 
-### 1. Core Date/Time Functions
-- [ ] `timelib_day_of_week()` - Calculate day of week
-- [ ] `timelib_iso_day_of_week()` - Calculate ISO day of week
-- [ ] `timelib_day_of_year()` - Calculate day of year
-- [ ] `timelib_days_in_month()` - Calculate days in month
-- [ ] `timelib_valid_time()` - Validate time
-- [ ] `timelib_valid_date()` - Validate date
+### 1. Core Date/Time Functions ✅
+- ✅ `DayOfWeek()` - Calculate day of week (0=Sunday..6=Saturday)
+- ✅ `IsoDayOfWeek()` - Calculate ISO day of week (1=Monday, 7=Sunday)
+- ✅ `DayOfYear()` - Calculate day of year (0=Jan 1st..364/365=Dec 31st)
+- ✅ `DaysInMonth()` - Calculate days in month
+- ✅ `ValidTime()` - Validate time (00:00:00..23:59:59)
+- ✅ `ValidDate()` - Validate date
+- ✅ `IsLeapYear()` - Determine if year is leap year
+- ✅ `IsoWeekFromDate()` - Calculate ISO week from date
+- ✅ `IsoDateFromDate()` - Calculate ISO date from date
+- ✅ `DayNrFromWeekNr()` - Calculate day number from week number
+- ✅ `DateFromIsoDate()` - Calculate date from ISO date
+- ✅ `positiveMod()` - Helper function for positive modulo
+
+### 2. Advanced Date Calculations ✅
+- ✅ Leap year handling with proper Gregorian calendar rules
+- ✅ ISO week date calculations (ISO 8601)
+- ✅ Day of year calculations with leap year support
+- ✅ Comprehensive validation functions
 
 ### 2. Parsing Functions
 - [ ] `timelib_strtotime()` - Parse date/time string
