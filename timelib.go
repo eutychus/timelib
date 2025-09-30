@@ -364,19 +364,81 @@ func ErrorContainerCtor() *ErrorContainer {
 
 // TimeCompare compares two Time structures
 func TimeCompare(t1, t2 *Time) int {
-	if t1.Sse == t2.Sse {
-		if t1.US == t2.US {
-			return 0
+	// If both times have valid SSE, compare by SSE first
+	if t1.SseUptodate && t2.SseUptodate {
+		if t1.Sse == t2.Sse {
+			if t1.US == t2.US {
+				return 0
+			}
+			if t1.US < t2.US {
+				return -1
+			}
+			return 1
 		}
+		if t1.Sse < t2.Sse {
+			return -1
+		}
+		return 1
+	}
+
+	// Fall back to comparing individual date/time fields
+	// Compare years
+	if t1.Y != t2.Y {
+		if t1.Y < t2.Y {
+			return -1
+		}
+		return 1
+	}
+
+	// Compare months
+	if t1.M != t2.M {
+		if t1.M < t2.M {
+			return -1
+		}
+		return 1
+	}
+
+	// Compare days
+	if t1.D != t2.D {
+		if t1.D < t2.D {
+			return -1
+		}
+		return 1
+	}
+
+	// Compare hours
+	if t1.H != t2.H {
+		if t1.H < t2.H {
+			return -1
+		}
+		return 1
+	}
+
+	// Compare minutes
+	if t1.I != t2.I {
+		if t1.I < t2.I {
+			return -1
+		}
+		return 1
+	}
+
+	// Compare seconds
+	if t1.S != t2.S {
+		if t1.S < t2.S {
+			return -1
+		}
+		return 1
+	}
+
+	// Compare microseconds
+	if t1.US != t2.US {
 		if t1.US < t2.US {
 			return -1
 		}
 		return 1
 	}
-	if t1.Sse < t2.Sse {
-		return -1
-	}
-	return 1
+
+	return 0
 }
 
 // DecimalHourToHMS converts a decimal hour into hour/min/sec components

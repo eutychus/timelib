@@ -1,0 +1,502 @@
+package timelib
+
+// Add adds the relative time information 'interval' to the base time 't'.
+// This can be a relative time as created by 'timelib_diff', but also by more
+// complex statements such as "next workday".
+func (t *Time) Add(interval *RelTime) *Time {
+	result := &Time{
+		Y:             t.Y,
+		M:             t.M,
+		D:             t.D,
+		H:             t.H,
+		I:             t.I,
+		S:             t.S,
+		US:            t.US,
+		Z:             t.Z,
+		TzAbbr:        t.TzAbbr,
+		TzInfo:        t.TzInfo,
+		Dst:           t.Dst,
+		Relative:      t.Relative, // RelTime is a value type, so this copies it
+		Sse:           t.Sse,
+		HaveTime:      t.HaveTime,
+		HaveDate:      t.HaveDate,
+		HaveZone:      t.HaveZone,
+		HaveRelative:  t.HaveRelative,
+		HaveWeeknrDay: t.HaveWeeknrDay,
+		SseUptodate:   t.SseUptodate,
+		TimUptodate:   t.TimUptodate,
+		IsLocaltime:   t.IsLocaltime,
+		ZoneType:      t.ZoneType,
+	}
+
+	// Add years
+	if interval.Y != 0 {
+		result.Y += interval.Y
+	}
+
+	// Add months
+	if interval.M != 0 {
+		result.M += interval.M
+		// Handle month overflow/underflow
+		for result.M > 12 {
+			result.M -= 12
+			result.Y++
+		}
+		for result.M < 1 {
+			result.M += 12
+			result.Y--
+		}
+	}
+
+	// Add days
+	if interval.D != 0 {
+		result.D += interval.D
+		// Normalize days (handle month boundaries)
+		timelib_do_normalize(result)
+	}
+
+	// Add hours, minutes, seconds
+	if interval.H != 0 {
+		result.H += interval.H
+	}
+	if interval.I != 0 {
+		result.I += interval.I
+	}
+	if interval.S != 0 {
+		result.S += interval.S
+	}
+	if interval.US != 0 {
+		result.US += interval.US
+	}
+
+	// Handle microseconds overflow
+	if result.US >= 1000000 || result.US < 0 {
+		extraSeconds := result.US / 1000000
+		result.S += extraSeconds
+		result.US = result.US % 1000000
+		if result.US < 0 {
+			result.US += 1000000
+			result.S--
+		}
+	}
+
+	// Handle seconds overflow
+	if result.S >= 60 || result.S < 0 {
+		extraMinutes := result.S / 60
+		result.I += extraMinutes
+		result.S = result.S % 60
+		if result.S < 0 {
+			result.S += 60
+			result.I--
+		}
+	}
+
+	// Handle minutes overflow
+	if result.I >= 60 || result.I < 0 {
+		extraHours := result.I / 60
+		result.H += extraHours
+		result.I = result.I % 60
+		if result.I < 0 {
+			result.I += 60
+			result.H--
+		}
+	}
+
+	// Handle hours overflow
+	if result.H >= 24 || result.H < 0 {
+		extraDays := result.H / 24
+		result.D += extraDays
+		result.H = result.H % 24
+		if result.H < 0 {
+			result.H += 24
+			result.D--
+		}
+	}
+
+	// Final normalization for any day overflow from hour adjustments
+	if result.D < 1 || result.D > DaysInMonth(result.Y, result.M) {
+		timelib_do_normalize(result)
+	}
+
+	return result
+}
+
+// Sub subtracts the relative time information 'interval' from the base time 't'.
+// Unlike with 'Add', this does not support more complex statements such as "next workday".
+func (t *Time) Sub(interval *RelTime) *Time {
+	// Create inverted interval
+	inverted := &RelTime{
+		Y:                   interval.Y,
+		M:                   interval.M,
+		D:                   interval.D,
+		H:                   interval.H,
+		I:                   interval.I,
+		S:                   interval.S,
+		US:                  interval.US,
+		Weekday:             interval.Weekday,
+		WeekdayBehavior:     interval.WeekdayBehavior,
+		FirstLastDayOf:      interval.FirstLastDayOf,
+		Invert:              interval.Invert,
+		Days:                interval.Days,
+		Special:             interval.Special,
+		HaveWeekdayRelative: interval.HaveWeekdayRelative,
+		HaveSpecialRelative: interval.HaveSpecialRelative,
+	}
+	inverted.Invert = !inverted.Invert
+
+	// Negate all values
+	inverted.Y = -inverted.Y
+	inverted.M = -inverted.M
+	inverted.D = -inverted.D
+	inverted.H = -inverted.H
+	inverted.I = -inverted.I
+	inverted.S = -inverted.S
+	inverted.US = -inverted.US
+
+	return t.Add(inverted)
+}
+
+// Diff calculates the difference between two times.
+// The result is a timelib_rel_time structure that describes how you can
+// convert from 'one' to 'two' with 'timelib_add'. This does *not* necessarily
+// mean that you can go from 'two' to 'one' by using 'timelib_sub' due to the
+// way months and days are calculated.
+func (t *Time) Diff(other *Time) *RelTime {
+	// Determine if we need to invert the result
+	if TimeCompare(t, other) > 0 {
+		// t is after other, so we need to calculate the difference in reverse
+		// and mark it as inverted
+		temp := &RelTime{}
+
+		// Calculate differences in reverse (t is after other)
+		temp.Y = t.Y - other.Y
+		temp.M = t.M - other.M
+		temp.D = t.D - other.D
+		temp.H = t.H - other.H
+		temp.I = t.I - other.I
+		temp.S = t.S - other.S
+		temp.US = t.US - other.US
+
+		// Handle negative differences
+		if temp.US < 0 {
+			temp.S--
+			temp.US += 1000000
+		}
+		if temp.S < 0 {
+			temp.I--
+			temp.S += 60
+		}
+		if temp.I < 0 {
+			temp.H--
+			temp.I += 60
+		}
+		if temp.H < 0 {
+			temp.D--
+			temp.H += 24
+		}
+
+		// Handle month/year overflow - only if we have negative months
+		if temp.M < 0 {
+			temp.Y--
+			temp.M += 12
+		}
+
+		// Handle day overflow - only if we have negative days
+		if temp.D < 0 {
+			// Get days in previous month of the "from" time (t)
+			prevMonth := t.M - 1
+			prevYear := t.Y
+			if prevMonth < 1 {
+				prevMonth += 12
+				prevYear--
+			}
+			temp.D += DaysInMonth(prevYear, prevMonth)
+			temp.M-- // Decrease month since we borrowed days
+
+			// Handle month underflow after borrowing
+			if temp.M < 0 {
+				temp.Y--
+				temp.M += 12
+			}
+		}
+
+		// Calculate total days difference
+		temp.Days = int64(timelib_diff_days(other, t))
+		temp.Invert = true
+
+		return temp
+	}
+
+	diff := &RelTime{}
+
+	// Calculate differences (other is after t)
+	diff.Y = other.Y - t.Y
+	diff.M = other.M - t.M
+	diff.D = other.D - t.D
+	diff.H = other.H - t.H
+	diff.I = other.I - t.I
+	diff.S = other.S - t.S
+	diff.US = other.US - t.US
+
+	// Handle negative differences
+	if diff.US < 0 {
+		diff.S--
+		diff.US += 1000000
+	}
+	if diff.S < 0 {
+		diff.I--
+		diff.S += 60
+	}
+	if diff.I < 0 {
+		diff.H--
+		diff.I += 60
+	}
+	if diff.H < 0 {
+		diff.D--
+		diff.H += 24
+	}
+
+	// Handle month/year overflow - only if we have negative months
+	if diff.M < 0 {
+		diff.Y--
+		diff.M += 12
+	}
+
+	// Handle day overflow - only if we have negative days
+	if diff.D < 0 {
+		// Get days in previous month of the "to" time (other)
+		prevMonth := other.M - 1
+		prevYear := other.Y
+		if prevMonth < 1 {
+			prevMonth += 12
+			prevYear--
+		}
+		diff.D += DaysInMonth(prevYear, prevMonth)
+		diff.M-- // Decrease month since we borrowed days
+
+		// Handle month underflow after borrowing
+		if diff.M < 0 {
+			diff.Y--
+			diff.M += 12
+		}
+	}
+
+	// Calculate total days difference
+	diff.Days = int64(timelib_diff_days(t, other))
+
+	return diff
+}
+
+// DiffDays calculates the difference in full days between two times.
+// The result is the number of full days between 'one' and 'two'. It does take
+// into account 23 and 25 hour (and variants) days when the zone_type
+// is TIMELIB_ZONETYPE_ID and have the same TZID for 'one' and 'two'.
+func timelib_diff_days(one, two *Time) int {
+	// Convert both times to epoch days
+	days1 := timelib_epoch_days_from_time(one)
+	days2 := timelib_epoch_days_from_time(two)
+
+	diff := int(days2 - days1)
+	if diff < 0 {
+		diff = -diff
+	}
+
+	return diff
+}
+
+// timelib_do_normalize normalizes the time values (handles overflow/underflow)
+func timelib_do_normalize(t *Time) {
+	// Normalize microseconds
+	if t.US >= 1000000 {
+		extraSeconds := t.US / 1000000
+		t.S += extraSeconds
+		t.US = t.US % 1000000
+	} else if t.US < 0 {
+		t.S--
+		t.US += 1000000
+	}
+
+	// Normalize seconds
+	if t.S >= 60 {
+		extraMinutes := t.S / 60
+		t.I += extraMinutes
+		t.S = t.S % 60
+	} else if t.S < 0 {
+		t.I--
+		t.S += 60
+	}
+
+	// Normalize minutes
+	if t.I >= 60 {
+		extraHours := t.I / 60
+		t.H += extraHours
+		t.I = t.I % 60
+	} else if t.I < 0 {
+		t.H--
+		t.I += 60
+	}
+
+	// Normalize hours
+	if t.H >= 24 {
+		extraDays := t.H / 24
+		t.D += extraDays
+		t.H = t.H % 24
+	} else if t.H < 0 {
+		t.D--
+		t.H += 24
+	}
+
+	// Normalize months first (handle month overflow/underflow)
+	for t.M > 12 {
+		t.M -= 12
+		t.Y++
+	}
+	for t.M < 1 {
+		t.M += 12
+		t.Y--
+	}
+
+	// Normalize days and months
+	for t.D > DaysInMonth(t.Y, t.M) {
+		t.D -= DaysInMonth(t.Y, t.M)
+		t.M++
+		if t.M > 12 {
+			t.M = 1
+			t.Y++
+		}
+	}
+
+	for t.D < 1 {
+		t.M--
+		if t.M < 1 {
+			t.M = 12
+			t.Y--
+		}
+		t.D += DaysInMonth(t.Y, t.M)
+	}
+}
+
+// timelib_epoch_days_from_time calculates epoch days from time
+func timelib_epoch_days_from_time(t *Time) int64 {
+	// Use the algorithm from howardhinnant.github.io/date_algorithms.html
+	// This is a simplified version - the full implementation would be more complex
+	y := t.Y
+	m := t.M
+	d := t.D
+
+	// Adjust for January/February
+	if m <= 2 {
+		y--
+		m += 12
+	}
+
+	// Calculate epoch days
+	var era int64
+	if y >= 0 {
+		era = y / 400
+	} else {
+		era = (y - 399) / 400
+	}
+	yoe := y - era*400
+	doy := (153*(m-3)+2)/5 + d - 1
+	doe := yoe*365 + yoe/4 - yoe/100 + doy
+	epochDays := era*146097 + doe - 719468
+
+	return epochDays
+}
+
+// UpdateTS updates the timestamp from date/time fields
+func (t *Time) UpdateTS(tzi *TzInfo) {
+	// Calculate epoch days
+	epochDays := timelib_epoch_days_from_time(t)
+
+	// Calculate seconds since epoch
+	seconds := epochDays * 24 * 3600
+	seconds += t.H * 3600
+	seconds += t.I * 60
+	seconds += t.S
+
+	// Add microseconds
+	t.Sse = seconds
+	t.SseUptodate = true
+}
+
+// Unixtime2date converts Unix timestamp to date
+func Unixtime2date(ts int64, y, m, d *int64) {
+	// Use the algorithm from howardhinnant.github.io/date_algorithms.html
+	// This is a simplified version
+	z := ts / 86400
+	z += 719468
+	era := z / 146097
+	doe := z - era*146097
+	yoe := (doe - doe/1460 + doe/36524 - doe/146096) / 365
+	y_ := yoe + era*400
+	doy := doe - (365*yoe + yoe/4 - yoe/100)
+	mp := (5*doy + 2) / 153
+	d_ := doy - (153*mp+2)/5 + 1
+	m_ := mp + 3
+
+	if m_ > 12 {
+		m_ -= 12
+		y_++
+	}
+
+	*y = y_
+	*m = m_
+	*d = d_
+}
+
+// Unixtime2gmt converts Unix timestamp to GMT
+func (t *Time) Unixtime2gmt(ts int64) {
+	var y, m, d int64
+	Unixtime2date(ts, &y, &m, &d)
+
+	t.Y = y
+	t.M = m
+	t.D = d
+
+	// Calculate remaining time
+	remaining := ts % 86400
+	if remaining < 0 {
+		remaining += 86400
+	}
+
+	t.H = remaining / 3600
+	remaining %= 3600
+	t.I = remaining / 60
+	t.S = remaining % 60
+	t.US = 0
+
+	t.IsLocaltime = false
+	t.ZoneType = TIMELIB_ZONETYPE_NONE
+	t.SseUptodate = true
+}
+
+// Unixtime2local converts Unix timestamp to local time
+func (t *Time) Unixtime2local(ts int64) {
+	// First convert to GMT
+	t.Unixtime2gmt(ts)
+
+	// Then apply timezone if available
+	if t.TzInfo != nil {
+		// For now, we'll set basic timezone info
+		// Full timezone implementation will come later
+		t.ZoneType = TIMELIB_ZONETYPE_ID
+		t.IsLocaltime = true
+	}
+}
+
+// UpdateFromSSE updates time from seconds since epoch
+func (t *Time) UpdateFromSSE() {
+	if t.SseUptodate {
+		return
+	}
+
+	if t.IsLocaltime && t.TzInfo != nil {
+		t.Unixtime2local(t.Sse)
+	} else {
+		t.Unixtime2gmt(t.Sse)
+	}
+
+	t.TimUptodate = true
+}

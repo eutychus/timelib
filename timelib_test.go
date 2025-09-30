@@ -105,8 +105,8 @@ func TestTimeOffsetCtor(t *testing.T) {
 
 func TestTimeCompare(t *testing.T) {
 	// Test equal times
-	t1 := &Time{Sse: 1000, US: 500}
-	t2 := &Time{Sse: 1000, US: 500}
+	t1 := &Time{Sse: 1000, US: 500, SseUptodate: true}
+	t2 := &Time{Sse: 1000, US: 500, SseUptodate: true}
 
 	result := TimeCompare(t1, t2)
 	if result != 0 {
