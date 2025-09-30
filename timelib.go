@@ -1,0 +1,462 @@
+// Package timelib provides comprehensive date and time parsing and manipulation functionality.
+// This is a Go port of the C timelib library originally developed by Derick Rethans.
+package timelib
+
+import (
+	"errors"
+	"time"
+)
+
+// Constants from the original C library
+const (
+	TIMELIB_UNSET = -9999999
+
+	// Zone types
+	TIMELIB_ZONETYPE_NONE   = 0
+	TIMELIB_ZONETYPE_OFFSET = 1
+	TIMELIB_ZONETYPE_ABBR   = 2
+	TIMELIB_ZONETYPE_ID     = 3
+
+	// Special relative types
+	TIMELIB_SPECIAL_WEEKDAY                   = 1
+	TIMELIB_SPECIAL_DAY_OF_WEEK_IN_MONTH      = 2
+	TIMELIB_SPECIAL_LAST_DAY_OF_WEEK_IN_MONTH = 3
+)
+
+// Error codes
+const (
+	TIMELIB_ERROR_NO_ERROR                          = 0x00
+	TIMELIB_ERROR_CANNOT_ALLOCATE                   = 0x01
+	TIMELIB_ERROR_CORRUPT_TRANSITIONS_DONT_INCREASE = 0x02
+	TIMELIB_ERROR_CORRUPT_NO_64BIT_PREAMBLE         = 0x03
+	TIMELIB_ERROR_CORRUPT_NO_ABBREVIATION           = 0x04
+	TIMELIB_ERROR_UNSUPPORTED_VERSION               = 0x05
+	TIMELIB_ERROR_NO_SUCH_TIMEZONE                  = 0x06
+	TIMELIB_ERROR_SLIM_FILE                         = 0x07
+	TIMELIB_ERROR_CORRUPT_POSIX_STRING              = 0x08
+	TIMELIB_ERROR_EMPTY_POSIX_STRING                = 0x09
+)
+
+// Time represents a date/time structure
+type Time struct {
+	Y, M, D       int64   // Year, Month, Day
+	H, I, S       int64   // Hour, Minute, Second
+	US            int64   // Microseconds
+	Z             int32   // UTC offset in seconds
+	TzAbbr        string  // Timezone abbreviation (display only)
+	TzInfo        *TzInfo // Timezone structure
+	Dst           int     // Flag if we were parsing a DST zone
+	Relative      RelTime
+	Sse           int64 // Seconds since epoch
+	HaveTime      bool
+	HaveDate      bool
+	HaveZone      bool
+	HaveRelative  bool
+	HaveWeeknrDay bool
+	SseUptodate   bool
+	TimUptodate   bool
+	IsLocaltime   bool
+	ZoneType      int
+}
+
+// RelTime represents relative time information
+type RelTime struct {
+	Y, M, D         int64 // Years, Months and Days
+	H, I, S         int64 // Hours, Minutes and Seconds
+	US              int64 // Microseconds
+	Weekday         int   // Stores the day in 'next monday'
+	WeekdayBehavior int   // 0: the current day should *not* be counted when advancing forwards; 1: the current day *should* be counted
+	FirstLastDayOf  int
+	Invert          bool  // Whether the difference should be inverted
+	Days            int64 // Contains the number of *days*, instead of Y-M-D differences
+	Special         struct {
+		Type   int
+		Amount int64
+	}
+	HaveWeekdayRelative bool
+	HaveSpecialRelative bool
+}
+
+// TimeOffset represents timezone offset information
+type TimeOffset struct {
+	Offset         int32
+	LeapSecs       int
+	IsDst          int
+	Abbr           string
+	TransitionTime int64
+}
+
+// TzInfo represents timezone information
+type TzInfo struct {
+	Name  string
+	Bit32 struct {
+		Ttisgmtcnt uint32
+		Ttisstdcnt uint32
+		Leapcnt    uint32
+		Timecnt    uint32
+		Typecnt    uint32
+		Charcnt    uint32
+	}
+	Bit64 struct {
+		Ttisgmtcnt uint64
+		Ttisstdcnt uint64
+		Leapcnt    uint64
+		Timecnt    uint64
+		Typecnt    uint64
+		Charcnt    uint64
+	}
+	Trans        []int64
+	TransIdx     []uint8
+	Type         []TTInfo
+	TimezoneAbbr string
+	LeapTimes    []TLInfo
+	Bc           uint8
+	Location     TLocInfo
+	PosixString  string
+	PosixInfo    *PosixStr
+}
+
+// TTInfo represents timezone type information
+type TTInfo struct {
+	Offset  int32
+	IsDst   int
+	AbbrIdx int
+	IsStd   int
+	IsUtc   int
+}
+
+// TLInfo represents leap time information
+type TLInfo struct {
+	Trans int64
+	Corr  int64
+}
+
+// TLocInfo represents location information
+type TLocInfo struct {
+	CountryCode [3]byte
+	Latitude    float64
+	Longitude   float64
+	Comments    string
+}
+
+// PosixStr represents POSIX timezone string information
+type PosixStr struct {
+	Std              string
+	StdOffset        int64
+	Dst              string
+	DstOffset        int64
+	DstBegin         *PosixTransInfo
+	DstEnd           *PosixTransInfo
+	TypeIndexStdType int
+	TypeIndexDstType int
+}
+
+// PosixTransInfo represents POSIX transition information
+type PosixTransInfo struct {
+	Type int // 1=Jn, 2=n, 3=Mm.w.d
+	Days int
+	Mwd  struct {
+		Month int
+		Week  int
+		Dow   int
+	}
+	Hour int
+}
+
+// PosixTransitions represents POSIX transitions
+type PosixTransitions struct {
+	Count int
+	Times [6]int64
+	Types [6]int64
+}
+
+// ErrorMessage represents an error message
+type ErrorMessage struct {
+	ErrorCode int
+	Position  int
+	Character byte
+	Message   string
+}
+
+// ErrorContainer holds error and warning messages
+type ErrorContainer struct {
+	ErrorMessages   []ErrorMessage
+	WarningMessages []ErrorMessage
+	ErrorCount      int
+	WarningCount    int
+}
+
+// TzLookupTable represents timezone lookup table entry
+type TzLookupTable struct {
+	Name       string
+	Type       int
+	GmtOffset  float32
+	FullTzName string
+}
+
+// TzDBIndexEntry represents timezone database index entry
+type TzDBIndexEntry struct {
+	ID  string
+	Pos int
+}
+
+// TzDB represents timezone database
+type TzDB struct {
+	Version   string
+	IndexSize int
+	Index     []TzDBIndexEntry
+	Data      []byte
+}
+
+// FormatSpecifier represents a format specifier
+type FormatSpecifier struct {
+	Specifier byte
+	Code      FormatSpecifierCode
+}
+
+// FormatSpecifierCode represents format specifier codes
+type FormatSpecifierCode int
+
+const (
+	TIMELIB_FORMAT_ALLOW_EXTRA_CHARACTERS FormatSpecifierCode = iota
+	TIMELIB_FORMAT_ANY_SEPARATOR
+	TIMELIB_FORMAT_DAY_TWO_DIGIT
+	TIMELIB_FORMAT_DAY_TWO_DIGIT_PADDED
+	TIMELIB_FORMAT_DAY_OF_WEEK_ISO
+	TIMELIB_FORMAT_DAY_OF_WEEK
+	TIMELIB_FORMAT_DAY_OF_YEAR
+	TIMELIB_FORMAT_DAY_SUFFIX
+	TIMELIB_FORMAT_END
+	TIMELIB_FORMAT_EPOCH_SECONDS
+	TIMELIB_FORMAT_ESCAPE
+	TIMELIB_FORMAT_HOUR_TWO_DIGIT_12_MAX
+	TIMELIB_FORMAT_HOUR_TWO_DIGIT_12_MAX_PADDED
+	TIMELIB_FORMAT_HOUR_TWO_DIGIT_24_MAX
+	TIMELIB_FORMAT_HOUR_TWO_DIGIT_24_MAX_PADDED
+	TIMELIB_FORMAT_LITERAL
+	TIMELIB_FORMAT_MERIDIAN
+	TIMELIB_FORMAT_MICROSECOND_SIX_DIGIT
+	TIMELIB_FORMAT_MILLISECOND_THREE_DIGIT
+	TIMELIB_FORMAT_MINUTE_TWO_DIGIT
+	TIMELIB_FORMAT_MONTH_TWO_DIGIT
+	TIMELIB_FORMAT_MONTH_TWO_DIGIT_PADDED
+	TIMELIB_FORMAT_RANDOM_CHAR
+	TIMELIB_FORMAT_RESET_ALL
+	TIMELIB_FORMAT_RESET_ALL_WHEN_NOT_SET
+	TIMELIB_FORMAT_SECOND_TWO_DIGIT
+	TIMELIB_FORMAT_SEPARATOR
+	TIMELIB_FORMAT_SKIP_TO_SEPARATOR
+	TIMELIB_FORMAT_TEXTUAL_DAY_3_LETTER
+	TIMELIB_FORMAT_TEXTUAL_DAY_FULL
+	TIMELIB_FORMAT_TEXTUAL_MONTH_3_LETTER
+	TIMELIB_FORMAT_TEXTUAL_MONTH_FULL
+	TIMELIB_FORMAT_TIMEZONE_OFFSET
+	TIMELIB_FORMAT_TIMEZONE_OFFSET_MINUTES
+	TIMELIB_FORMAT_WEEK_OF_YEAR_ISO
+	TIMELIB_FORMAT_WEEK_OF_YEAR
+	TIMELIB_FORMAT_WHITESPACE
+	TIMELIB_FORMAT_YEAR_TWO_DIGIT
+	TIMELIB_FORMAT_YEAR_FOUR_DIGIT
+	TIMELIB_FORMAT_YEAR_EXPANDED
+	TIMELIB_FORMAT_YEAR_ISO
+)
+
+// FormatConfig represents format configuration
+type FormatConfig struct {
+	FormatMap  []FormatSpecifier
+	PrefixChar byte
+}
+
+// Common errors
+var (
+	ErrInvalidDate     = errors.New("invalid date")
+	ErrInvalidTime     = errors.New("invalid time")
+	ErrInvalidTimezone = errors.New("invalid timezone")
+	ErrParseError      = errors.New("parse error")
+)
+
+// GetErrorMessage returns a static string containing an error message belonging to a specific error code
+func GetErrorMessage(errorCode int) string {
+	errorMessages := []string{
+		"No error",
+		"Cannot allocate buffer for parsing",
+		"Corrupt tzfile: The transitions in the file don't always increase",
+		"Corrupt tzfile: The expected 64-bit preamble is missing",
+		"Corrupt tzfile: No abbreviation could be found for a transition",
+		"The version used in this timezone identifier is unsupported",
+		"No timezone with this name could be found",
+		"A 'slim' timezone file has been detected",
+		"The embedded POSIX string is not valid",
+		"The embedded POSIX string is empty",
+	}
+
+	if errorCode >= 0 && errorCode < len(errorMessages) {
+		return errorMessages[errorCode]
+	}
+	return "Unknown error code"
+}
+
+// TimeCtor creates a new Time structure
+func TimeCtor() *Time {
+	return &Time{
+		Y:        TIMELIB_UNSET,
+		M:        TIMELIB_UNSET,
+		D:        TIMELIB_UNSET,
+		H:        TIMELIB_UNSET,
+		I:        TIMELIB_UNSET,
+		S:        TIMELIB_UNSET,
+		US:       0,
+		Z:        0,
+		Dst:      -1,
+		ZoneType: TIMELIB_ZONETYPE_NONE,
+	}
+}
+
+// RelTimeCtor creates a new RelTime structure
+func RelTimeCtor() *RelTime {
+	return &RelTime{
+		Y: 0, M: 0, D: 0,
+		H: 0, I: 0, S: 0,
+		US:              0,
+		Weekday:         -1,
+		WeekdayBehavior: 0,
+		FirstLastDayOf:  0,
+		Invert:          false,
+		Days:            0,
+	}
+}
+
+// TimeOffsetCtor creates a new TimeOffset structure
+func TimeOffsetCtor() *TimeOffset {
+	return &TimeOffset{
+		Offset:         0,
+		LeapSecs:       0,
+		IsDst:          0,
+		Abbr:           "",
+		TransitionTime: 0,
+	}
+}
+
+// ErrorContainerCtor creates a new ErrorContainer
+func ErrorContainerCtor() *ErrorContainer {
+	return &ErrorContainer{
+		ErrorMessages:   make([]ErrorMessage, 0),
+		WarningMessages: make([]ErrorMessage, 0),
+		ErrorCount:      0,
+		WarningCount:    0,
+	}
+}
+
+// TimeCompare compares two Time structures
+func TimeCompare(t1, t2 *Time) int {
+	if t1.Sse == t2.Sse {
+		if t1.US == t2.US {
+			return 0
+		}
+		if t1.US < t2.US {
+			return -1
+		}
+		return 1
+	}
+	if t1.Sse < t2.Sse {
+		return -1
+	}
+	return 1
+}
+
+// DecimalHourToHMS converts a decimal hour into hour/min/sec components
+func DecimalHourToHMS(h float64) (hour, min, sec int) {
+	swap := false
+
+	if h < 0 {
+		swap = true
+		h = -h
+	}
+
+	hour = int(h)
+	remainingSeconds := (h - float64(hour)) * 3600.0
+	totalMinutes := remainingSeconds / 60.0
+	min = int(totalMinutes)
+	sec = int((totalMinutes-float64(min))*60.0 + 0.5) // Add 0.5 for proper rounding
+
+	// Handle overflow from seconds to minutes
+	if sec >= 60 {
+		sec -= 60
+		min++
+	}
+
+	if swap {
+		hour = -hour
+	}
+
+	return
+}
+
+// HMSToDecimalHour converts hour/min/sec values into a decimal hour
+func HMSToDecimalHour(hour, min, sec int) float64 {
+	if hour >= 0 {
+		return float64(hour) + float64(min)/60 + float64(sec)/3600
+	}
+	return float64(hour) - float64(min)/60 - float64(sec)/3600
+}
+
+// HMSFToDecimalHour converts hour/min/sec/micro sec values into a decimal hour
+func HMSFToDecimalHour(hour, min, sec, us int) float64 {
+	if hour >= 0 {
+		return float64(hour) + float64(min)/60.0 + float64(sec)/3600.0 + float64(us)/3600000000.0
+	}
+	return float64(hour) - float64(min)/60.0 - float64(sec)/3600.0 - float64(us)/3600000000.0
+}
+
+// HMSToSeconds converts hour/min/sec values into seconds
+func HMSToSeconds(h, m, s int64) int64 {
+	return h*3600 + m*60 + s
+}
+
+// DateToInt converts the 'sse' value to an int64 type with error checking
+func DateToInt(d *Time) (int64, error) {
+	ts := d.Sse
+
+	if ts < -9223372036854775808 || ts > 9223372036854775807 {
+		return 0, errors.New("timestamp out of range")
+	}
+
+	return ts, nil
+}
+
+// SetTimezoneFromOffset attaches the UTC offset as time zone information
+func SetTimezoneFromOffset(t *Time, utcOffset int64) {
+	t.ZoneType = TIMELIB_ZONETYPE_OFFSET
+	t.Z = int32(utcOffset)
+	t.Dst = 0
+	t.TzAbbr = ""
+	t.TzInfo = nil
+}
+
+// SetTimezoneFromAbbr attaches timezone information from abbreviation
+func SetTimezoneFromAbbr(t *Time, abbr string, utcOffset int64, isDst int) {
+	t.ZoneType = TIMELIB_ZONETYPE_ABBR
+	t.Z = int32(utcOffset)
+	t.Dst = isDst
+	t.TzAbbr = abbr
+	t.TzInfo = nil
+}
+
+// SetTimezone attaches timezone information from TzInfo
+func SetTimezone(t *Time, tz *TzInfo) {
+	t.ZoneType = TIMELIB_ZONETYPE_ID
+	t.TzInfo = tz
+	t.TzAbbr = tz.Name
+}
+
+// ConvertTime converts a Time structure to Go's time.Time
+func ConvertTime(t *Time) time.Time {
+	// For now, return zero time - this will be implemented later
+	return time.Time{}
+}
+
+// ConvertFromTime converts Go's time.Time to a Time structure
+func ConvertFromTime(t time.Time) *Time {
+	// For now, return basic structure - this will be implemented later
+	return TimeCtor()
+}
