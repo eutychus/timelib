@@ -45,6 +45,11 @@ const (
 	TIMELIB_ERROR_SLIM_FILE                         = 0x07
 	TIMELIB_ERROR_CORRUPT_POSIX_STRING              = 0x08
 	TIMELIB_ERROR_EMPTY_POSIX_STRING                = 0x09
+
+	// Parse error codes
+	TIMELIB_ERROR_EMPTY_STRING        = 0x206
+	TIMELIB_ERROR_UNEXPECTED_DATA     = 0x207
+	TIMELIB_ERROR_NUMBER_OUT_OF_RANGE = 0x226
 )
 
 // Time represents a date/time structure

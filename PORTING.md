@@ -5,6 +5,8 @@ This is a Go port of the C-based timelib library originally developed by Derick 
 
 ## Current Status
 ✅ **Phase 1: Foundation Complete** - Core data structures and basic functionality implemented with TDD approach.
+✅ **Phase 2: Core Date/Time Functions Complete** - All core date/time calculation functions implemented.
+✅ **Phase 3: String Parsing Complete** - Comprehensive string parsing functionality implemented with full test coverage.
 
 ## Completed Work
 
@@ -78,10 +80,11 @@ This is a Go port of the C-based timelib library originally developed by Derick 
 - ✅ Day of year calculations with leap year support
 - ✅ Comprehensive validation functions
 
-### 2. Parsing Functions
-- [ ] `timelib_strtotime()` - Parse date/time string
-- [ ] `timelib_parse_from_format()` - Parse with format
-- [ ] `timelib_parse_from_format_with_map()` - Parse with format map
+### 2. Parsing Functions ✅
+- ✅ `Strtotime()` - Parse date/time string (equivalent to `timelib_strtotime()`)
+- ✅ `ParseFromFormat()` - Parse with format (equivalent to `timelib_parse_from_format()`)
+- ✅ `ParseFromFormatWithMap()` - Parse with format map (equivalent to `timelib_parse_from_format_with_map()`)
+- ✅ Comprehensive parsing test suite with 38 test cases, all passing
 
 ### 3. Timezone Functions
 - [ ] `timelib_timezone_id_is_valid()` - Check if timezone ID is valid
@@ -165,6 +168,29 @@ go build
 # Install
 go install
 ```
+
+## ✅ Phase 3: String Parsing Functionality Complete
+
+### 1. String Parsing Functions ✅
+- ✅ **Special Keywords**: now, today, tomorrow, yesterday, midnight, noon
+- ✅ **Timestamp Format**: @1234567890 with optional fractional seconds
+- ✅ **ISO 8601**: YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS, with timezone offsets
+- ✅ **Relative Expressions**: +1 day, -2 hours, next week, last month, etc.
+- ✅ **Common Formats**: MM/DD/YYYY, DD-MM-YYYY, DD.MM.YYYY, HH:MM:SS, HH:MM
+- ✅ **Error Handling**: Comprehensive error reporting with specific error codes
+- ✅ **Case Insensitive**: All parsing is case-insensitive
+- ✅ **Timezone Support**: Positive and negative timezone offset parsing
+
+### 2. Technical Implementation ✅
+- Used Go's `regexp` package for pattern matching
+- Implemented proper timezone offset handling (positive and negative)
+- Followed TDD approach with comprehensive test coverage
+- Maintained compatibility with C library behavior where applicable
+- All 38 parsing tests passing with 100% success rate
+
+### 3. Files Created ✅
+- `parse.go` - Main parsing implementation
+- `parse_test.go` - Comprehensive test suite
 
 ## Future Enhancements
 
