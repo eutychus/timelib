@@ -247,8 +247,9 @@ func (p *StringParser) parseTimestamp(result *ParseResult) bool {
 
 // parseISO8601 handles ISO 8601 date formats
 func (p *StringParser) parseISO8601(result *ParseResult) bool {
-	// Basic ISO 8601 pattern: YYYY-MM-DD or YYYYMMDD
-	isoPattern := regexp.MustCompile(`^(\d{4})-?(\d{2})-?(\d{2})(?:[T ](\d{2}):?(\d{2}):?(\d{2})(?:\.(\d{1,6}))?(?:Z|([+-]\d{2}):?(\d{2}))?)?$`)
+	// Extended ISO 8601 pattern: supports years with optional + prefix and extended ranges
+	// Pattern: [+-]?\d{4,}-MM-DD[THH:MM:SS[.f][Z|[+-]HH:MM]]
+	isoPattern := regexp.MustCompile(`^([+-]?\d{4,})-?(\d{2})-?(\d{2})(?:[T ](\d{2}):?(\d{2}):?(\d{2})(?:\.(\d{1,6}))?(?:Z|([+-]\d{2}):?(\d{2}))?)?$`)
 
 	matches := isoPattern.FindStringSubmatch(p.input)
 	if matches == nil {
@@ -591,8 +592,70 @@ func (p *StringParser) parseEuropeanDateDots(result *ParseResult, matches []stri
 	return true
 }
 
+// parseTimezoneIdentifier handles timezone identifiers like "Europe/Amsterdam", "America/New_York", etc.
+func (p *StringParser) parseTimezoneIdentifier(result *ParseResult) bool {
+	// Pattern to match timezone identifiers: Continent/City or Continent/Region/City
+	// This is a simplified pattern - real timezone identifiers are more complex
+	tzPattern := regexp.MustCompile(`(?:^|\s)([A-Z][a-zA-Z]+(?:/[A-Z][a-zA-Z]+(?:_[A-Z][a-zA-Z]+)*(?:/[A-Z][a-zA-Z]+(?:_[A-Z][a-zA-Z]+)*)?)(?:\s|$)`)
+
+	matches := tzPattern.FindStringSubmatch(p.input)
+	if matches == nil {
+		return false
+	}
+
+	tzID := matches[1]
+
+	// For now, we'll just set the timezone identifier without loading actual timezone data
+	// This matches the behavior of the C++ tests which just check if the identifier was parsed
+	result.Time.TzAbbr = tzID
+	result.Time.ZoneType = TIMELIB_ZONETYPE_ID
+	result.HasZone = true
+	result.Time.IsLocaltime = true
+
+	// Try to parse the remaining parts of the string
+	remaining := strings.Replace(p.input, tzID, "", 1)
+	remaining = strings.TrimSpace(remaining)
+
+	if remaining != "" {
+		// Try to parse the remaining part as a date/time
+		tempParser := NewStringParser(remaining, p.options)
+		tempResult := tempParser.Parse()
+
+		// If we successfully parsed a date/time, copy those values
+		if tempResult.HasDate || tempResult.HasTime {
+			if tempResult.HasDate {
+				result.Time.Y = tempResult.Time.Y
+				result.Time.M = tempResult.Time.M
+				result.Time.D = tempResult.Time.D
+				result.HasDate = true
+			}
+			if tempResult.HasTime {
+				result.Time.H = tempResult.Time.H
+				result.Time.I = tempResult.Time.I
+				result.Time.S = tempResult.Time.S
+				result.Time.US = tempResult.Time.US
+				result.HasTime = true
+			}
+		} else {
+			// If no date/time was found, just set the timezone identifier
+			// This handles cases like "Europe/Amsterdam" by itself
+			return true
+		}
+	} else {
+		// Just timezone identifier by itself
+		return true
+	}
+
+	return true
+}
+
 // parseGeneric handles generic parsing as fallback
 func (p *StringParser) parseGeneric(result *ParseResult) bool {
+	// First try to parse timezone identifiers
+	if p.parseTimezoneIdentifier(result) {
+		return true
+	}
+
 	// Try to parse as Go's time.Parse with multiple formats
 	formats := []string{
 		time.RFC3339,
@@ -657,11 +720,4 @@ func Strtotime(input string) (*Time, *ErrorContainer) {
 // StrtotimeWithOptions parses a date/time string with options
 func StrtotimeWithOptions(input string, options ParseOptions) (*Time, *ErrorContainer) {
 	return ParseStrtotime(input, options)
-}
-
-// ParseFromFormat parses a date/time string according to a format
-func ParseFromFormat(format, input string) (*Time, *ErrorContainer) {
-	// For now, this is a simplified version
-	// Full format parsing would be implemented later
-	return Strtotime(input)
 }

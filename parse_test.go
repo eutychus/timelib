@@ -727,3 +727,375 @@ func TestStrtotimeCaseInsensitive(t *testing.T) {
 		})
 	}
 }
+
+func TestStrtotimeExtendedYearRanges(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected struct {
+			y int64
+			m int64
+			d int64
+			h int64
+			i int64
+			s int64
+		}
+		desc string
+	}{
+		{
+			input: "+10000-01-01T00:00:00",
+			expected: struct {
+				y int64
+				m int64
+				d int64
+				h int64
+				i int64
+				s int64
+			}{y: 10000, m: 1, d: 1, h: 0, i: 0, s: 0},
+			desc: "Extended year +10000",
+		},
+		{
+			input: "+99999-01-01T00:00:00",
+			expected: struct {
+				y int64
+				m int64
+				d int64
+				h int64
+				i int64
+				s int64
+			}{y: 99999, m: 1, d: 1, h: 0, i: 0, s: 0},
+			desc: "Extended year +99999",
+		},
+		{
+			input: "+100000-01-01T00:00:00",
+			expected: struct {
+				y int64
+				m int64
+				d int64
+				h int64
+				i int64
+				s int64
+			}{y: 100000, m: 1, d: 1, h: 0, i: 0, s: 0},
+			desc: "Extended year +100000",
+		},
+		{
+			input: "+4294967296-01-01T00:00:00",
+			expected: struct {
+				y int64
+				m int64
+				d int64
+				h int64
+				i int64
+				s int64
+			}{y: 4294967296, m: 1, d: 1, h: 0, i: 0, s: 0},
+			desc: "Extended year +4294967296 (2^32)",
+		},
+		{
+			input: "+9223372036854775807-01-01T00:00:00",
+			expected: struct {
+				y int64
+				m int64
+				d int64
+				h int64
+				i int64
+				s int64
+			}{y: 9223372036854775807, m: 1, d: 1, h: 0, i: 0, s: 0},
+			desc: "Extended year +9223372036854775807 (max int64)",
+		},
+		{
+			input: "-10000-01-01T00:00:00",
+			expected: struct {
+				y int64
+				m int64
+				d int64
+				h int64
+				i int64
+				s int64
+			}{y: -10000, m: 1, d: 1, h: 0, i: 0, s: 0},
+			desc: "Extended negative year -10000",
+		},
+		{
+			input: "-99999-01-01T00:00:00",
+			expected: struct {
+				y int64
+				m int64
+				d int64
+				h int64
+				i int64
+				s int64
+			}{y: -99999, m: 1, d: 1, h: 0, i: 0, s: 0},
+			desc: "Extended negative year -99999",
+		},
+		{
+			input: "-100000-01-01T00:00:00",
+			expected: struct {
+				y int64
+				m int64
+				d int64
+				h int64
+				i int64
+				s int64
+			}{y: -100000, m: 1, d: 1, h: 0, i: 0, s: 0},
+			desc: "Extended negative year -100000",
+		},
+		{
+			input: "-4294967296-01-01T00:00:00",
+			expected: struct {
+				y int64
+				m int64
+				d int64
+				h int64
+				i int64
+				s int64
+			}{y: -4294967296, m: 1, d: 1, h: 0, i: 0, s: 0},
+			desc: "Extended negative year -4294967296 (-2^32)",
+		},
+		{
+			input: "-9223372036854775807-01-01T00:00:00",
+			expected: struct {
+				y int64
+				m int64
+				d int64
+				h int64
+				i int64
+				s int64
+			}{y: -9223372036854775807, m: 1, d: 1, h: 0, i: 0, s: 0},
+			desc: "Extended negative year -9223372036854775807 (min int64)",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			result, errors := Strtotime(test.input)
+
+			if errors.ErrorCount > 0 {
+				t.Errorf("%s: unexpected errors: %v", test.desc, errors.ErrorMessages)
+			}
+
+			if result.Y != test.expected.y {
+				t.Errorf("%s: expected Y=%d, got %d", test.desc, test.expected.y, result.Y)
+			}
+			if result.M != test.expected.m {
+				t.Errorf("%s: expected M=%d, got %d", test.desc, test.expected.m, result.M)
+			}
+			if result.D != test.expected.d {
+				t.Errorf("%s: expected D=%d, got %d", test.desc, test.expected.d, result.D)
+			}
+			if result.H != test.expected.h {
+				t.Errorf("%s: expected H=%d, got %d", test.desc, test.expected.h, result.H)
+			}
+			if result.I != test.expected.i {
+				t.Errorf("%s: expected I=%d, got %d", test.desc, test.expected.i, result.I)
+			}
+			if result.S != test.expected.s {
+				t.Errorf("%s: expected S=%d, got %d", test.desc, test.expected.s, result.S)
+			}
+		})
+	}
+}
+
+func TestStrtotimeTimezoneIdentifiers(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected struct {
+			y    int64
+			m    int64
+			d    int64
+			h    int64
+			i    int64
+			s    int64
+			us   int64
+			tzID string
+		}
+		desc string
+	}{
+		{
+			input: "01:00:03.12345 Europe/Amsterdam",
+			expected: struct {
+				y    int64
+				m    int64
+				d    int64
+				h    int64
+				i    int64
+				s    int64
+				us   int64
+				tzID string
+			}{y: 0, m: 0, d: 0, h: 1, i: 0, s: 3, us: 123450, tzID: "Europe/Amsterdam"},
+			desc: "Europe/Amsterdam timezone identifier",
+		},
+		{
+			input: "01:00:03.12345 America/Indiana/Knox",
+			expected: struct {
+				y    int64
+				m    int64
+				d    int64
+				h    int64
+				i    int64
+				s    int64
+				us   int64
+				tzID string
+			}{y: 0, m: 0, d: 0, h: 1, i: 0, s: 3, us: 123450, tzID: "America/Indiana/Knox"},
+			desc: "America/Indiana/Knox timezone identifier",
+		},
+		{
+			input: "2005-07-14 22:30:41 America/Los_Angeles",
+			expected: struct {
+				y    int64
+				m    int64
+				d    int64
+				h    int64
+				i    int64
+				s    int64
+				us   int64
+				tzID string
+			}{y: 2005, m: 7, d: 14, h: 22, i: 30, s: 41, us: 0, tzID: "America/Los_Angeles"},
+			desc: "America/Los_Angeles timezone identifier",
+		},
+		{
+			input: "2005-07-14	22:30:41	America/Los_Angeles",
+			expected: struct {
+				y    int64
+				m    int64
+				d    int64
+				h    int64
+				i    int64
+				s    int64
+				us   int64
+				tzID string
+			}{y: 2005, m: 7, d: 14, h: 22, i: 30, s: 41, us: 0, tzID: "America/Los_Angeles"},
+			desc: "America/Los_Angeles timezone identifier with tabs",
+		},
+		{
+			input: "Africa/Dar_es_Salaam",
+			expected: struct {
+				y    int64
+				m    int64
+				d    int64
+				h    int64
+				i    int64
+				s    int64
+				us   int64
+				tzID string
+			}{y: 0, m: 0, d: 0, h: 0, i: 0, s: 0, us: 0, tzID: "Africa/Dar_es_Salaam"},
+			desc: "Africa/Dar_es_Salaam timezone identifier",
+		},
+		{
+			input: "Africa/Porto-Novo",
+			expected: struct {
+				y    int64
+				m    int64
+				d    int64
+				h    int64
+				i    int64
+				s    int64
+				us   int64
+				tzID string
+			}{y: 0, m: 0, d: 0, h: 0, i: 0, s: 0, us: 0, tzID: "Africa/Porto-Novo"},
+			desc: "Africa/Porto-Novo timezone identifier",
+		},
+		{
+			input: "America/Blanc-Sablon",
+			expected: struct {
+				y    int64
+				m    int64
+				d    int64
+				h    int64
+				i    int64
+				s    int64
+				us   int64
+				tzID string
+			}{y: 0, m: 0, d: 0, h: 0, i: 0, s: 0, us: 0, tzID: "America/Blanc-Sablon"},
+			desc: "America/Blanc-Sablon timezone identifier",
+		},
+		{
+			input: "America/Port-au-Prince",
+			expected: struct {
+				y    int64
+				m    int64
+				d    int64
+				h    int64
+				i    int64
+				s    int64
+				us   int64
+				tzID string
+			}{y: 0, m: 0, d: 0, h: 0, i: 0, s: 0, us: 0, tzID: "America/Port-au-Prince"},
+			desc: "America/Port-au-Prince timezone identifier",
+		},
+		{
+			input: "America/Port_of_Spain",
+			expected: struct {
+				y    int64
+				m    int64
+				d    int64
+				h    int64
+				i    int64
+				s    int64
+				us   int64
+				tzID string
+			}{y: 0, m: 0, d: 0, h: 0, i: 0, s: 0, us: 0, tzID: "America/Port_of_Spain"},
+			desc: "America/Port_of_Spain timezone identifier",
+		},
+		{
+			input: "Antarctica/DumontDUrville",
+			expected: struct {
+				y    int64
+				m    int64
+				d    int64
+				h    int64
+				i    int64
+				s    int64
+				us   int64
+				tzID string
+			}{y: 0, m: 0, d: 0, h: 0, i: 0, s: 0, us: 0, tzID: "Antarctica/DumontDUrville"},
+			desc: "Antarctica/DumontDUrville timezone identifier",
+		},
+		{
+			input: "Antarctica/McMurdo",
+			expected: struct {
+				y    int64
+				m    int64
+				d    int64
+				h    int64
+				i    int64
+				s    int64
+				us   int64
+				tzID string
+			}{y: 0, m: 0, d: 0, h: 0, i: 0, s: 0, us: 0, tzID: "Antarctica/McMurdo"},
+			desc: "Antarctica/McMurdo timezone identifier",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			result, errors := Strtotime(test.input)
+
+			if errors.ErrorCount > 0 {
+				t.Errorf("%s: unexpected errors: %v", test.desc, errors.ErrorMessages)
+			}
+
+			if result.Y != test.expected.y {
+				t.Errorf("%s: expected Y=%d, got %d", test.desc, test.expected.y, result.Y)
+			}
+			if result.M != test.expected.m {
+				t.Errorf("%s: expected M=%d, got %d", test.desc, test.expected.m, result.M)
+			}
+			if result.D != test.expected.d {
+				t.Errorf("%s: expected D=%d, got %d", test.desc, test.expected.d, result.D)
+			}
+			if result.H != test.expected.h {
+				t.Errorf("%s: expected H=%d, got %d", test.desc, test.expected.h, result.H)
+			}
+			if result.I != test.expected.i {
+				t.Errorf("%s: expected I=%d, got %d", test.desc, test.expected.i, result.I)
+			}
+			if result.S != test.expected.s {
+				t.Errorf("%s: expected S=%d, got %d", test.desc, test.expected.s, result.S)
+			}
+			if result.US != test.expected.us {
+				t.Errorf("%s: expected US=%d, got %d", test.desc, test.expected.us, result.US)
+			}
+			if result.TzInfo != nil && result.TzInfo.Name != test.expected.tzID {
+				t.Errorf("%s: expected timezone ID=%s, got %s", test.desc, test.expected.tzID, result.TzInfo.Name)
+			}
+		})
+	}
+}

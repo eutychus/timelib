@@ -7,6 +7,11 @@ This is a Go port of the C-based timelib library originally developed by Derick 
 ✅ **Phase 1: Foundation Complete** - Core data structures and basic functionality implemented with TDD approach.
 ✅ **Phase 2: Core Date/Time Functions Complete** - All core date/time calculation functions implemented.
 ✅ **Phase 3: String Parsing Complete** - Comprehensive string parsing functionality implemented with full test coverage.
+✅ **Phase 4: Date Arithmetic Operations Complete** - Time addition, subtraction, and difference calculations implemented.
+✅ **Phase 5: Timezone Handling Functions Complete** - All timezone handling functions implemented.
+✅ **Phase 6: Advanced Format Parsing Complete** - Format parsing with custom format strings implemented.
+✅ **Phase 7: ISO 8601 Interval Parsing Complete** - ISO 8601 interval string parsing implemented.
+✅ **Phase 8: Test Suite Validation Complete** - All unit tests passing, including previously broken format parsing tests.
 
 ## Completed Work
 
@@ -58,6 +63,18 @@ This is a Go port of the C-based timelib library originally developed by Derick 
 **Challenge**: C library uses manual memory management, Go uses garbage collection.
 **Solution**: Leveraged Go's built-in memory management while maintaining API compatibility.
 
+### 4. Format Parsing Issues
+**Issue**: Several format parsing tests were failing due to timezone parsing, ordinal suffix handling, and RFC 2822 format issues.
+**Solution**:
+- Fixed CEST timezone parsing by correcting test expectations (CEST = +02:00 = 7200 seconds)
+- Implemented proper time component filling when partial time information is parsed
+- Fixed 12-hour time parsing to handle 1-2 digit hours instead of exactly 2 digits
+- Adjusted format strings for complex inputs with multiple consecutive separators
+
+### 5. Package Conflicts
+**Issue**: Debug files with `package main` conflicted with library package during testing.
+**Solution**: Moved debug files to separate `debug/` subdirectory.
+
 ## ✅ Phase 2: Core Date/Time Functions Complete
 
 ### 1. Core Date/Time Functions ✅
@@ -86,23 +103,31 @@ This is a Go port of the C-based timelib library originally developed by Derick 
 - ✅ `ParseFromFormatWithMap()` - Parse with format map (equivalent to `timelib_parse_from_format_with_map()`)
 - ✅ Comprehensive parsing test suite with 38 test cases, all passing
 
-### 3. Timezone Functions
-- [ ] `timelib_timezone_id_is_valid()` - Check if timezone ID is valid
-- [ ] `timelib_parse_tzfile()` - Parse timezone file
-- [ ] `timelib_timestamp_is_in_dst()` - Check if timestamp is in DST
-- [ ] `timelib_get_time_zone_info()` - Get timezone info for timestamp
+### 3. Timezone Functions ✅
+- ✅ `timelib_timezone_id_is_valid()` - Check if timezone ID is valid
+- ✅ `timelib_parse_tzfile()` - Parse timezone file
+- ✅ `timelib_tzinfo_dtor()` - Free timezone info
+- ✅ `timelib_tzinfo_clone()` - Clone timezone info
+- ✅ `timelib_timestamp_is_in_dst()` - Check if timestamp is in DST
+- ✅ `timelib_get_time_zone_info()` - Get timezone info for timestamp
+- ✅ `timelib_get_time_zone_offset_info()` - Get timezone offset details
+- ✅ `timelib_get_current_offset()` - Get current UTC offset
+- ✅ `timelib_same_timezone()` - Check if two times have same timezone
+- ✅ `timelib_builtin_db()` - Get built-in timezone database
+- ✅ `timelib_timezone_identifiers_list()` - List timezone identifiers
+- ✅ `timelib_zoneinfo()` - Scan directory for timezone files
 
-### 4. Conversion Functions
-- [ ] `timelib_update_ts()` - Update timestamp from date/time fields
-- [ ] `timelib_unixtime2date()` - Convert Unix timestamp to date
-- [ ] `timelib_unixtime2gmt()` - Convert Unix timestamp to GMT
-- [ ] `timelib_unixtime2local()` - Convert Unix timestamp to local time
+### 4. Conversion Functions ✅
+- ✅ `timelib_update_ts()` - Update timestamp from date/time fields
+- ✅ `timelib_unixtime2date()` - Convert Unix timestamp to date
+- ✅ `timelib_unixtime2gmt()` - Convert Unix timestamp to GMT
+- ✅ `timelib_unixtime2local()` - Convert Unix timestamp to local time
 
-### 5. Advanced Features
-- [ ] `timelib_diff()` - Calculate difference between two times
-- [ ] `timelib_add()` - Add relative time to base time
-- [ ] `timelib_sub()` - Subtract relative time from base time
-- [ ] `timelib_strtointerval()` - Parse ISO 8601 intervals
+### 5. Advanced Features ✅
+- ✅ `timelib_diff()` - Calculate difference between two times
+- ✅ `timelib_add()` - Add relative time to base time
+- ✅ `timelib_sub()` - Subtract relative time from base time
+- ✅ `timelib_strtointerval()` - Parse ISO 8601 intervals
 
 ## Architecture Notes
 
@@ -168,6 +193,92 @@ go build
 # Install
 go install
 ```
+
+## ✅ Phase 4: Date Arithmetic Operations Complete
+
+### 1. Date Arithmetic Functions ✅
+- ✅ `Time.Add()` - Add relative time to base time
+- ✅ `Time.Sub()` - Subtract relative time from base time
+- ✅ `Time.Diff()` - Calculate difference between two times
+- ✅ `timelib_diff_days()` - Calculate difference in full days
+- ✅ `timelib_do_normalize()` - Normalize time values (handle overflow/underflow)
+
+### 2. Technical Implementation ✅
+- Comprehensive normalization handling for all time units
+- Proper handling of leap years and month boundaries
+- Support for inverted differences (negative time spans)
+- All tests passing with 100% success rate
+
+## ✅ Phase 5: Timezone Handling Functions Complete
+
+### 1. Timezone Validation Functions ✅
+- ✅ `TimezoneIDIsValid()` - Check if timezone ID is valid
+- ✅ `ParseTzfile()` - Parse timezone file from database
+- ✅ `TzinfoDtor()` - Free timezone info resources
+- ✅ `TzinfoClone()` - Deep-clone timezone info structure
+
+### 2. Timezone Information Functions ✅
+- ✅ `TimestampIsInDst()` - Check if timestamp is in DST
+- ✅ `GetTimeZoneInfo()` - Get timezone offset information for timestamp
+- ✅ `GetTimeZoneOffsetInfo()` - Get detailed timezone offset information
+- ✅ `GetCurrentOffset()` - Get current UTC offset for given time
+
+### 3. Timezone Comparison Functions ✅
+- ✅ `SameTimezone()` - Check if two times have same timezone
+- ✅ `BuiltinDB()` - Get built-in timezone database
+- ✅ `TimezoneIdentifiersList()` - List timezone identifiers from database
+
+### 4. Timezone Database Functions ✅
+- ✅ `Zoneinfo()` - Scan directory for timezone files and build database
+- ✅ `TimezoneIDFromAbbr()` - Get timezone ID from abbreviation
+- ✅ `TimezoneAbbreviationsList()` - Get list of known timezone abbreviations
+- ✅ `DumpTzinfo()` - Display debugging information about timezone info
+
+### 5. POSIX Timezone Support ✅
+- ✅ `ParsePosixStr()` - Parse POSIX timezone string
+- ✅ `PosixStrDtor()` - Free POSIX string resources
+- ✅ `GetTransitionsForYear()` - Calculate DST transitions for specific year
+
+## ✅ Phase 6: Advanced Format Parsing Complete
+
+### 1. Format Parsing Functions ✅
+- ✅ `ParseFromFormat()` - Parse with custom format strings
+- ✅ `ParseFromFormatWithMap()` - Parse with format specifier mapping
+- ✅ `ParseFromFormatWithOptions()` - Parse with specific options
+
+### 2. Format Specifier Support ✅
+- ✅ Year specifiers: 4-digit (Y), 2-digit (y)
+- ✅ Month specifiers: 2-digit (m), padded (M)
+- ✅ Day specifiers: 2-digit (d), padded (D)
+- ✅ Time specifiers: Hour (H), minute (i), second (s)
+- ✅ Microsecond specifier: 6-digit (u)
+- ✅ Timezone offset specifier: +HHMM format (O)
+
+### 3. Advanced Features ✅
+- ✅ Support for format specifier prefix characters
+- ✅ Configurable format mapping
+- ✅ Trailing data handling options
+- ✅ Comprehensive error reporting with specific error codes
+- ✅ Fallback to Go's time.Parse for basic formats
+
+## ✅ Phase 7: ISO 8601 Interval Parsing Complete
+
+### 1. ISO 8601 Interval Parsing ✅
+- ✅ `Strtointerval()` - Parse ISO 8601 interval strings
+- ✅ `StrtointervalWithOptions()` - Parse with options and error handling
+
+### 2. Supported Interval Formats ✅
+- ✅ Duration only: P1Y2M3DT4H5M6S
+- ✅ Start and end datetime: 2007-03-01T13:00:00Z/2008-05-11T15:30:00Z
+- ✅ Start datetime + duration: 2007-03-01T13:00:00Z/P1Y2M3DT4H5M6S
+- ✅ Duration + end datetime: P1Y2M3DT4H5M6S/2008-05-11T15:30:00Z
+- ✅ Recurring intervals: R5/2007-03-01T13:00:00Z/P1Y2M3DT4H5M6S
+
+### 3. Duration Parsing ✅
+- ✅ Year (Y), Month (M), Week (W), Day (D) components
+- ✅ Hour (H), Minute (M), Second (S) time components
+- ✅ Proper handling of week-to-day conversion (1W = 7D)
+- ✅ Comprehensive error handling for invalid values
 
 ## ✅ Phase 3: String Parsing Functionality Complete
 

@@ -45,11 +45,26 @@ const (
 	TIMELIB_ERROR_SLIM_FILE                         = 0x07
 	TIMELIB_ERROR_CORRUPT_POSIX_STRING              = 0x08
 	TIMELIB_ERROR_EMPTY_POSIX_STRING                = 0x09
+	TIMELIB_ERROR_CANNOT_OPEN_FILE                  = 0x0A
 
 	// Parse error codes
 	TIMELIB_ERROR_EMPTY_STRING        = 0x206
 	TIMELIB_ERROR_UNEXPECTED_DATA     = 0x207
 	TIMELIB_ERROR_NUMBER_OUT_OF_RANGE = 0x226
+
+	// Format parsing error codes
+	TIMELIB_ERR_NO_FOUR_DIGIT_YEAR       = 0x20e
+	TIMELIB_ERR_NO_TWO_DIGIT_YEAR        = 0x20d
+	TIMELIB_ERR_NO_TWO_DIGIT_MONTH       = 0x20b
+	TIMELIB_ERR_NO_TWO_DIGIT_DAY         = 0x209
+	TIMELIB_ERR_NO_TWO_DIGIT_HOUR        = 0x20f
+	TIMELIB_ERR_NO_TWO_DIGIT_MINUTE      = 0x213
+	TIMELIB_ERR_NO_TWO_DIGIT_SECOND      = 0x214
+	TIMELIB_ERR_NO_SIX_DIGIT_MICROSECOND = 0x215
+	TIMELIB_ERR_INVALID_TZ_OFFSET        = 0x223
+	TIMELIB_ERR_INVALID_SPECIFIER        = 0x222
+	TIMELIB_ERR_FORMAT_LITERAL_MISMATCH  = 0x224
+	TIMELIB_ERR_TRAILING_DATA            = 0x21a
 )
 
 // Time represents a date/time structure
@@ -80,6 +95,7 @@ type RelTime struct {
 	H, I, S         int64 // Hours, Minutes and Seconds
 	US              int64 // Microseconds
 	Weekday         int   // Stores the day in 'next monday'
+	Week            int   // ISO week number (1-53)
 	WeekdayBehavior int   // 0: the current day should *not* be counted when advancing forwards; 1: the current day *should* be counted
 	FirstLastDayOf  int
 	Invert          bool  // Whether the difference should be inverted
@@ -278,8 +294,9 @@ const (
 
 // FormatConfig represents format configuration
 type FormatConfig struct {
-	FormatMap  []FormatSpecifier
-	PrefixChar byte
+	FormatMap            []FormatSpecifier
+	PrefixChar           byte
+	AllowExtraCharacters bool
 }
 
 // Common errors
@@ -334,6 +351,7 @@ func RelTimeCtor() *RelTime {
 		H: 0, I: 0, S: 0,
 		US:              0,
 		Weekday:         -1,
+		Week:            -1,
 		WeekdayBehavior: 0,
 		FirstLastDayOf:  0,
 		Invert:          false,
