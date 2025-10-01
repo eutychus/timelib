@@ -241,6 +241,7 @@ type TzDB struct {
 	IndexSize int
 	Index     []TzDBIndexEntry
 	Data      []byte
+	BaseDir   string // Base directory for file-based databases
 }
 
 // FormatSpecifier represents a format specifier
@@ -543,9 +544,20 @@ func SetTimezoneFromAbbr(t *Time, abbr string, utcOffset int64, isDst int) {
 
 // SetTimezone attaches timezone information from TzInfo
 func SetTimezone(t *Time, tz *TzInfo) {
-	t.ZoneType = TIMELIB_ZONETYPE_ID
+	gmtOffset := GetTimeZoneInfo(t.Sse, tz)
+	if gmtOffset != nil {
+		t.Z = gmtOffset.Offset
+		t.Dst = int(gmtOffset.IsDst)
+		t.TzAbbr = gmtOffset.Abbr
+	} else {
+		// No timezone data available, use defaults
+		t.Z = 0
+		t.Dst = 0
+		t.TzAbbr = tz.Name
+	}
 	t.TzInfo = tz
-	t.TzAbbr = tz.Name
+	t.HaveZone = true
+	t.ZoneType = TIMELIB_ZONETYPE_ID
 }
 
 // ConvertTime converts a Time structure to Go's time.Time

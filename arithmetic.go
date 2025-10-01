@@ -1,5 +1,9 @@
 package timelib
 
+import "math"
+
+const INT64_MIN = math.MinInt64
+
 // Add adds the relative time information 'interval' to the base time 't'.
 // This can be a relative time as created by 'timelib_diff', but also by more
 // complex statements such as "next workday".
@@ -426,15 +430,175 @@ func (t *Time) UpdateTS(tzi *TzInfo) {
 	seconds += epochDays * (86400 / 2)
 	seconds += epochDays * (86400 / 2)
 
-	// Adjust for timezone if needed
-	// doAdjustTimezone(t, tzi) // TODO: implement if needed
-
 	t.Sse = seconds
+
+	// Adjust for timezone - this modifies t.Sse
+	doAdjustTimezone(t, tzi)
 	t.SseUptodate = true
 	t.HaveRelative = false
 	t.Relative.HaveWeekdayRelative = false
 	t.Relative.HaveSpecialRelative = false
 	t.Relative.FirstLastDayOf = 0
+}
+
+// doAdjustTimezone adjusts the SSE based on timezone information
+// This is a direct port of the C function from tm2unixtime.c
+func doAdjustTimezone(tz *Time, tzi *TzInfo) {
+	const SECS_PER_HOUR = 3600
+
+	switch tz.ZoneType {
+	case TIMELIB_ZONETYPE_OFFSET:
+		tz.IsLocaltime = true
+		tz.Sse += -int64(tz.Z)
+		return
+
+	case TIMELIB_ZONETYPE_ABBR:
+		tz.IsLocaltime = true
+		tz.Sse += (-int64(tz.Z) - int64(tz.Dst*SECS_PER_HOUR))
+		return
+
+	case TIMELIB_ZONETYPE_ID:
+		tzi = tz.TzInfo
+		fallthrough
+
+	default:
+		// No timezone in struct, fallback to reference if possible
+		var currentOffset int32 = 0
+		var currentTransitionTime int64 = 0
+		var currentIsDst uint = 0
+		var afterOffset int32 = 0
+		var afterTransitionTime int64 = 0
+		var adjustment int64
+		var inTransition bool
+		var actualOffset int32
+		var actualTransitionTime int64
+
+		if tzi == nil {
+			return
+		}
+
+		getTimeZoneOffsetInfo(tz.Sse, tzi, &currentOffset, &currentTransitionTime, &currentIsDst)
+		getTimeZoneOffsetInfo(tz.Sse-int64(currentOffset), tzi, &afterOffset, &afterTransitionTime, nil)
+		actualOffset = afterOffset
+		actualTransitionTime = afterTransitionTime
+
+		if currentOffset == afterOffset && tz.HaveZone {
+			// Make sure we're not missing a DST change because we don't know the actual offset yet
+			if currentOffset >= 0 && tz.Dst != 0 && currentIsDst == 0 {
+				// Timezone or its DST at or east of UTC
+				var earlierOffset int32
+				var earlierTransitionTime int64
+				getTimeZoneOffsetInfo(tz.Sse-int64(currentOffset)-7200, tzi, &earlierOffset, &earlierTransitionTime, nil)
+				if earlierOffset != afterOffset && tz.Sse-int64(earlierOffset) < afterTransitionTime {
+					actualOffset = earlierOffset
+					actualTransitionTime = earlierTransitionTime
+				}
+			} else if currentOffset <= 0 && currentIsDst != 0 && tz.Dst == 0 {
+				// Timezone west of UTC
+				var laterOffset int32
+				var laterTransitionTime int64
+				getTimeZoneOffsetInfo(tz.Sse-int64(currentOffset)+7200, tzi, &laterOffset, &laterTransitionTime, nil)
+				if laterOffset != afterOffset && tz.Sse-int64(laterOffset) >= laterTransitionTime {
+					actualOffset = laterOffset
+					actualTransitionTime = laterTransitionTime
+				}
+			}
+		}
+
+		tz.IsLocaltime = true
+
+		inTransition = (
+			actualTransitionTime != INT64_MIN &&
+				((tz.Sse - int64(actualOffset)) >= (actualTransitionTime + int64(currentOffset-actualOffset))) &&
+				((tz.Sse - int64(actualOffset)) < actualTransitionTime))
+
+		if currentOffset != actualOffset && !inTransition {
+			adjustment = -int64(actualOffset)
+		} else {
+			adjustment = -int64(currentOffset)
+		}
+
+		tz.Sse += adjustment
+		SetTimezone(tz, tzi)
+		return
+	}
+}
+
+// getTimeZoneOffsetInfo gets timezone offset information for a given timestamp
+// This is a port of the C function from parse_tz.c
+func getTimeZoneOffsetInfo(ts int64, tz *TzInfo, offset *int32, transitionTime *int64, isDst *uint) bool {
+	if tz == nil {
+		return false
+	}
+
+	to, tmpTransitionTime := fetchTimezoneOffset(tz, ts)
+	if to != nil {
+		if offset != nil {
+			*offset = to.Offset
+		}
+		if isDst != nil {
+			*isDst = uint(to.IsDst)
+		}
+		if transitionTime != nil {
+			*transitionTime = tmpTransitionTime
+		}
+		return true
+	}
+	return false
+}
+
+// fetchTimezoneOffset finds the timezone offset for a given timestamp
+// This is a port of timelib_fetch_timezone_offset from parse_tz.c
+func fetchTimezoneOffset(tz *TzInfo, ts int64) (*TTInfo, int64) {
+	if tz == nil {
+		return nil, 0
+	}
+
+	// If there are no transitions, use type 0 or POSIX info
+	if tz.Bit64.Timecnt == 0 || len(tz.Trans) == 0 {
+		// TODO: Handle POSIX info if available
+		if tz.Bit64.Typecnt == 1 && len(tz.Type) > 0 {
+			return &tz.Type[0], INT64_MIN
+		}
+		return nil, 0
+	}
+
+	// Before first transition, use type 0
+	if ts < tz.Trans[0] {
+		if len(tz.Type) > 0 {
+			return &tz.Type[0], INT64_MIN
+		}
+		return nil, 0
+	}
+
+	// After last transition, use POSIX info or last transition
+	if ts >= tz.Trans[tz.Bit64.Timecnt-1] {
+		// TODO: Handle POSIX info if available
+		transIdx := tz.TransIdx[tz.Bit64.Timecnt-1]
+		if int(transIdx) < len(tz.Type) {
+			return &tz.Type[transIdx], tz.Trans[tz.Bit64.Timecnt-1]
+		}
+		return nil, 0
+	}
+
+	// Binary search for the right transition
+	left := uint64(0)
+	right := tz.Bit64.Timecnt - 1
+
+	for right-left > 1 {
+		mid := (left + right) >> 1
+		if ts < tz.Trans[mid] {
+			right = mid
+		} else {
+			left = mid
+		}
+	}
+
+	transIdx := tz.TransIdx[left]
+	if int(transIdx) < len(tz.Type) {
+		return &tz.Type[transIdx], tz.Trans[left]
+	}
+	return nil, 0
 }
 
 // doAdjustRelative applies relative time adjustments

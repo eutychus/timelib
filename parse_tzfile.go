@@ -564,10 +564,15 @@ func ParseTzfileFromDB(tzName string, tzdb *TzDB, errorCode *int) (*TzInfo, erro
 		return ParseTzfileData(tzName, tzdb.Data[entry.Pos:], errorCode)
 	}
 
-	// Otherwise, try to load from file
-	// The index might store file paths
+	// Otherwise, try to load from file using BaseDir
+	if entry.Pos == 0 && entry.ID != "" && tzdb.BaseDir != "" {
+		// Construct full path from BaseDir + relative ID
+		fullPath := filepath.Join(tzdb.BaseDir, filepath.FromSlash(entry.ID))
+		return ParseTzfileFromFile(fullPath, errorCode)
+	}
+
+	// Try as direct filename if no BaseDir
 	if entry.Pos == 0 && entry.ID != "" {
-		// Try as filename
 		return ParseTzfileFromFile(entry.ID, errorCode)
 	}
 

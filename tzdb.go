@@ -24,11 +24,18 @@ func ZoneinfoDir(directory string) (*TzDB, error) {
 		return nil, fmt.Errorf("%s is not a directory", directory)
 	}
 
+	// Get absolute path for the directory
+	absDir, err := filepath.Abs(directory)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get absolute path for %s: %v", directory, err)
+	}
+
 	tzdb := &TzDB{
 		Version:   "custom",
 		IndexSize: 0,
 		Index:     []TzDBIndexEntry{},
 		Data:      []byte{},
+		BaseDir:   absDir,
 	}
 
 	// Walk the directory tree
@@ -73,7 +80,7 @@ func ZoneinfoDir(directory string) (*TzDB, error) {
 		// Add to index
 		entry := TzDBIndexEntry{
 			ID:  relPath,
-			Pos: 0, // Will store file path in ID
+			Pos: 0, // File-based entries use Pos=0
 		}
 		tzdb.Index = append(tzdb.Index, entry)
 		tzdb.IndexSize++
@@ -170,8 +177,16 @@ func LoadTzFileFromDB(tzName string, tzdb *TzDB) ([]byte, string, error) {
 	}
 
 	// Load from file - ID contains the relative path
-	// Need to determine the base directory
-	// For now, assume system paths
+	// First try BaseDir if available
+	if tzdb.BaseDir != "" {
+		fullPath := filepath.Join(tzdb.BaseDir, filepath.FromSlash(entry.ID))
+		data, err := os.ReadFile(fullPath)
+		if err == nil {
+			return data, fullPath, nil
+		}
+	}
+
+	// Fall back to system paths and direct path
 	possiblePaths := []string{
 		entry.ID,
 		filepath.Join("/usr/share/zoneinfo", entry.ID),

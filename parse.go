@@ -595,15 +595,22 @@ func (p *StringParser) parseEuropeanDateDots(result *ParseResult, matches []stri
 // parseTimezoneIdentifier handles timezone identifiers like "Europe/Amsterdam", "America/New_York", etc.
 func (p *StringParser) parseTimezoneIdentifier(result *ParseResult) bool {
 	// Pattern to match timezone identifiers: Continent/City or Continent/Region/City
-	// This is a simplified pattern - real timezone identifiers are more complex
-	tzPattern := regexp.MustCompile(`(?:^|\s)([A-Z][a-zA-Z]+(?:/[A-Z][a-zA-Z]+(?:_[A-Z][a-zA-Z]+)*(?:/[A-Z][a-zA-Z]+(?:_[A-Z][a-zA-Z]+)*)?)(?:\s|$)`)
+	// Timezone names can contain: letters, underscores, hyphens
+	// Examples: America/New_York, America/Port-au-Prince, America/Indiana/Knox
+	// Match timezone at the end of the string or followed by whitespace
+	tzPattern := regexp.MustCompile(`\s+([A-Z][a-zA-Z_-]+(?:/[A-Z][a-zA-Z_-]+)*)(?:\s|$)`)
 
-	matches := tzPattern.FindStringSubmatch(p.input)
+	matches := tzPattern.FindStringSubmatchIndex(p.input)
 	if matches == nil {
-		return false
+		// Try matching just the timezone identifier by itself (no leading whitespace)
+		tzPattern = regexp.MustCompile(`^([A-Z][a-zA-Z_-]+(?:/[A-Z][a-zA-Z_-]+)*)$`)
+		matches = tzPattern.FindStringSubmatchIndex(p.input)
+		if matches == nil {
+			return false
+		}
 	}
 
-	tzID := matches[1]
+	tzID := p.input[matches[2]:matches[3]]
 
 	// For now, we'll just set the timezone identifier without loading actual timezone data
 	// This matches the behavior of the C++ tests which just check if the identifier was parsed
@@ -612,8 +619,12 @@ func (p *StringParser) parseTimezoneIdentifier(result *ParseResult) bool {
 	result.HasZone = true
 	result.Time.IsLocaltime = true
 
-	// Try to parse the remaining parts of the string
-	remaining := strings.Replace(p.input, tzID, "", 1)
+	// Extract the part before the timezone identifier
+	var remaining string
+	if matches[0] > 0 {
+		// There's text before the timezone
+		remaining = strings.TrimSpace(p.input[:matches[0]])
+	}
 	remaining = strings.TrimSpace(remaining)
 
 	if remaining != "" {
@@ -628,6 +639,11 @@ func (p *StringParser) parseTimezoneIdentifier(result *ParseResult) bool {
 				result.Time.M = tempResult.Time.M
 				result.Time.D = tempResult.Time.D
 				result.HasDate = true
+			} else {
+				// Time-only, set date to 0
+				result.Time.Y = 0
+				result.Time.M = 0
+				result.Time.D = 0
 			}
 			if tempResult.HasTime {
 				result.Time.H = tempResult.Time.H
@@ -637,13 +653,24 @@ func (p *StringParser) parseTimezoneIdentifier(result *ParseResult) bool {
 				result.HasTime = true
 			}
 		} else {
-			// If no date/time was found, just set the timezone identifier
-			// This handles cases like "Europe/Amsterdam" by itself
-			return true
+			// If no date/time was found in remaining, set fields to 0
+			result.Time.Y = 0
+			result.Time.M = 0
+			result.Time.D = 0
+			result.Time.H = 0
+			result.Time.I = 0
+			result.Time.S = 0
+			result.Time.US = 0
 		}
 	} else {
-		// Just timezone identifier by itself
-		return true
+		// Just a timezone identifier by itself - set fields to 0
+		result.Time.Y = 0
+		result.Time.M = 0
+		result.Time.D = 0
+		result.Time.H = 0
+		result.Time.I = 0
+		result.Time.S = 0
+		result.Time.US = 0
 	}
 
 	return true
@@ -657,12 +684,18 @@ func (p *StringParser) parseGeneric(result *ParseResult) bool {
 	}
 
 	// Try to parse as Go's time.Parse with multiple formats
+	// Normalize tabs to spaces for more flexible parsing
+	normalizedInput := strings.ReplaceAll(p.input, "\t", " ")
+
 	formats := []string{
 		time.RFC3339,
 		time.RFC3339Nano,
+		"2006-01-02 15:04:05.999999",
 		"2006-01-02 15:04:05",
 		"2006-01-02 15:04",
 		"2006-01-02",
+		"15:04:05.999999",
+		"15:04:05",
 		"01/02/2006",
 		"02/01/2006",
 		"Jan 2, 2006",
@@ -672,15 +705,26 @@ func (p *StringParser) parseGeneric(result *ParseResult) bool {
 	}
 
 	for _, format := range formats {
-		if t, err := time.Parse(format, p.input); err == nil {
-			result.Time.Y = int64(t.Year())
-			result.Time.M = int64(t.Month())
-			result.Time.D = int64(t.Day())
+		if t, err := time.Parse(format, normalizedInput); err == nil {
+			// Check if the format includes date components
+			hasDateInFormat := strings.Contains(format, "2006") || strings.Contains(format, "Jan") || strings.Contains(format, "01/") || strings.Contains(format, "02/")
+
+			if hasDateInFormat {
+				result.Time.Y = int64(t.Year())
+				result.Time.M = int64(t.Month())
+				result.Time.D = int64(t.Day())
+				result.HasDate = true
+			} else {
+				// Time-only format - set date to 0
+				result.Time.Y = 0
+				result.Time.M = 0
+				result.Time.D = 0
+			}
+
 			result.Time.H = int64(t.Hour())
 			result.Time.I = int64(t.Minute())
 			result.Time.S = int64(t.Second())
 			result.Time.US = int64(t.Nanosecond() / 1000)
-			result.HasDate = true
 			result.HasTime = true
 			return true
 		}

@@ -149,17 +149,53 @@ func GetTimeZoneInfo(ts int64, tz *TzInfo) *TimeOffset {
 		return nil
 	}
 
-	// This is a simplified implementation
-	// Full timezone info would require parsing transitions
-	offset := &TimeOffset{
-		Offset:         0, // Would be calculated from timezone data
-		LeapSecs:       0,
-		IsDst:          0,
-		Abbr:           tz.TimezoneAbbr,
-		TransitionTime: ts,
+	var offset int32 = 0
+	var transitionTime int64 = 0
+	var abbr string = "GMT"
+	var isDst uint = 0
+
+	// Fetch timezone offset using the helper function
+	to, tt := fetchTimezoneOffset(tz, ts)
+	if to != nil {
+		offset = to.Offset
+		transitionTime = tt
+		isDst = uint(to.IsDst)
+		if int(to.AbbrIdx) < len(tz.TimezoneAbbr) {
+			// Extract null-terminated string from timezone_abbr
+			abbr = extractNullTerminatedString(tz.TimezoneAbbr, int(to.AbbrIdx))
+		}
+	} else {
+		offset = 0
+		// Use TimezoneAbbr if available, otherwise fall back to Name
+		if tz.TimezoneAbbr != "" {
+			abbr = tz.TimezoneAbbr
+		} else {
+			abbr = tz.Name
+		}
+		isDst = 0
+		transitionTime = 0
 	}
 
-	return offset
+	return &TimeOffset{
+		Offset:         offset,
+		LeapSecs:       0, // TODO: implement leap seconds
+		IsDst:          int(isDst),
+		Abbr:           abbr,
+		TransitionTime: transitionTime,
+	}
+}
+
+// Helper function to extract a null-terminated string from a byte array
+func extractNullTerminatedString(data string, offset int) string {
+	if offset >= len(data) {
+		return ""
+	}
+	for i := offset; i < len(data); i++ {
+		if data[i] == 0 {
+			return data[offset:i]
+		}
+	}
+	return data[offset:]
 }
 
 // GetTimeZoneOffsetInfo returns detailed timezone offset information
@@ -168,20 +204,12 @@ func GetTimeZoneOffsetInfo(ts int64, tz *TzInfo, offset *int32, transitionTime *
 		return 0 // Failure
 	}
 
-	// This is a simplified implementation
-	// Full implementation would parse timezone transitions
-
-	if offset != nil {
-		*offset = 0 // Would be calculated from timezone data
+	// Use the internal helper function
+	success := getTimeZoneOffsetInfo(ts, tz, offset, transitionTime, isDst)
+	if success {
+		return 1
 	}
-	if transitionTime != nil {
-		*transitionTime = ts
-	}
-	if isDst != nil {
-		*isDst = 0
-	}
-
-	return 1 // Success
+	return 0
 }
 
 // GetCurrentOffset returns the current UTC offset for the given time
