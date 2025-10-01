@@ -225,17 +225,7 @@ func SameTimezone(one, two *Time) bool {
 	return false
 }
 
-// BuiltinDB returns the built-in timezone database
-func BuiltinDB() *TzDB {
-	// This would return the actual built-in timezone database
-	// For now, return a placeholder
-	return &TzDB{
-		Version:   "2023.4", // Placeholder version
-		IndexSize: 0,
-		Index:     []TzDBIndexEntry{},
-		Data:      []byte{},
-	}
-}
+// BuiltinDB is now implemented in tzdata_builtin.go
 
 // TimezoneIdentifiersList returns a list of timezone identifiers
 func TimezoneIdentifiersList(tzdb *TzDB, count *int) []TzDBIndexEntry {

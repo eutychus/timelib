@@ -152,9 +152,21 @@ func LoadTzFileFromDB(tzName string, tzdb *TzDB) ([]byte, string, error) {
 
 	// If database has embedded data
 	if len(tzdb.Data) > 0 && entry.Pos < len(tzdb.Data) {
-		// For built-in database, would need to know entry sizes
-		// This is a placeholder - real implementation would parse correctly
-		return nil, "", fmt.Errorf("built-in database not yet implemented")
+		// Find the end of this entry by finding the next entry's position
+		endPos := len(tzdb.Data)
+		for i := range tzdb.Index {
+			if tzdb.Index[i].Pos > entry.Pos && tzdb.Index[i].Pos < endPos {
+				endPos = tzdb.Index[i].Pos
+			}
+		}
+
+		// Extract data for this timezone
+		if entry.Pos < endPos && endPos <= len(tzdb.Data) {
+			data := tzdb.Data[entry.Pos:endPos]
+			return data, tzName, nil
+		}
+
+		return nil, "", fmt.Errorf("invalid timezone data boundaries")
 	}
 
 	// Load from file - ID contains the relative path

@@ -255,9 +255,9 @@ func readIndicators(data []byte, pos int, ttisstdcnt, ttisgmtcnt uint32, types [
 }
 
 // readPosixString reads POSIX TZ string from v2+ format
-func readPosixString(data []byte, pos int) (string, error) {
+func readPosixString(data []byte, pos int) (string, int, error) {
 	if pos >= len(data) {
-		return "", nil
+		return "", pos, nil
 	}
 
 	// Find the newline that precedes the POSIX string
@@ -266,7 +266,7 @@ func readPosixString(data []byte, pos int) (string, error) {
 	}
 
 	if pos >= len(data) {
-		return "", nil
+		return "", pos, nil
 	}
 
 	// Read until newline or end of data
@@ -276,10 +276,50 @@ func readPosixString(data []byte, pos int) (string, error) {
 	}
 
 	if end > pos {
-		return string(data[pos:end]), nil
+		return string(data[pos:end]), end, nil
 	}
 
-	return "", nil
+	return "", pos, nil
+}
+
+// readLocation reads location data (latitude, longitude, comments) from PHP format
+func readLocation(data []byte, pos int, tz *TzInfo) (int, error) {
+	// Need 12 bytes for lat, lon, and comments_len
+	if len(data) < pos+12 {
+		return pos, errors.New("not enough data for location")
+	}
+
+	// Read latitude (4 bytes)
+	latRaw := readUint32BE(data[pos : pos+4])
+	tz.Location.Latitude = (float64(latRaw) / 100000.0) - 90.0
+	pos += 4
+
+	// Read longitude (4 bytes)
+	lonRaw := readUint32BE(data[pos : pos+4])
+	tz.Location.Longitude = (float64(lonRaw) / 100000.0) - 180.0
+	pos += 4
+
+	// Read comments length (4 bytes)
+	commentsLen := readUint32BE(data[pos : pos+4])
+	pos += 4
+
+	// Read comments string
+	if len(data) < pos+int(commentsLen) {
+		return pos, errors.New("not enough data for location comments")
+	}
+	tz.Location.Comments = string(data[pos : pos+int(commentsLen)])
+	pos += int(commentsLen)
+
+	return pos, nil
+}
+
+// setDefaultLocation sets default location data for TZif format files
+func setDefaultLocation(tz *TzInfo) {
+	tz.Location.Latitude = -90.0
+	tz.Location.Longitude = -180.0
+	tz.Location.Comments = "?"
+	// For TZif files, set country code to ??
+	copy(tz.Location.CountryCode[:], "??")
 }
 
 // validateTransitions ensures transitions are monotonically increasing
@@ -444,7 +484,7 @@ func ParseTzfileData(tzName string, data []byte, errorCode *int) (*TzInfo, error
 
 	// Read POSIX TZ string for v2+
 	if version >= 2 {
-		tz.PosixString, err = readPosixString(data, pos)
+		tz.PosixString, pos, err = readPosixString(data, pos)
 		if err != nil {
 			return nil, err
 		}
@@ -453,6 +493,22 @@ func ParseTzfileData(tzName string, data []byte, errorCode *int) (*TzInfo, error
 		if tz.PosixString != "" {
 			tz.PosixInfo, _ = ParsePosixString(tz.PosixString, tz)
 		}
+
+		// Skip past newline after POSIX string
+		if pos < len(data) && data[pos] == '\n' {
+			pos++
+		}
+	}
+
+	// Read location data for PHP format, or set defaults for TZif
+	if format == "PHP" {
+		pos, err = readLocation(data, pos, tz)
+		if err != nil {
+			// If location reading fails, just use defaults instead of erroring
+			setDefaultLocation(tz)
+		}
+	} else {
+		setDefaultLocation(tz)
 	}
 
 	return tz, nil

@@ -406,19 +406,89 @@ func timelib_epoch_days_from_time(t *Time) int64 {
 }
 
 // UpdateTS updates the timestamp from date/time fields
+// This is the Go equivalent of timelib_update_ts
 func (t *Time) UpdateTS(tzi *TzInfo) {
+	// Adjust for special relative times (early adjustments)
+	doAdjustSpecialEarly(t)
+
+	// Adjust for relative time
+	doAdjustRelative(t)
+
+	// Adjust for special relative times (late adjustments)
+	doAdjustSpecial(t)
+
 	// Calculate epoch days
 	epochDays := timelib_epoch_days_from_time(t)
 
 	// Calculate seconds since epoch
-	seconds := epochDays * 24 * 3600
-	seconds += t.H * 3600
-	seconds += t.I * 60
-	seconds += t.S
+	// Split into two parts to avoid overflow
+	seconds := t.H*3600 + t.I*60 + t.S
+	seconds += epochDays * (86400 / 2)
+	seconds += epochDays * (86400 / 2)
 
-	// Add microseconds
+	// Adjust for timezone if needed
+	// doAdjustTimezone(t, tzi) // TODO: implement if needed
+
 	t.Sse = seconds
 	t.SseUptodate = true
+	t.HaveRelative = false
+	t.Relative.HaveWeekdayRelative = false
+	t.Relative.HaveSpecialRelative = false
+	t.Relative.FirstLastDayOf = 0
+}
+
+// doAdjustRelative applies relative time adjustments
+func doAdjustRelative(t *Time) {
+	if t.Relative.HaveWeekdayRelative {
+		// TODO: implement weekday adjustments
+	}
+
+	timelib_do_normalize(t)
+
+	if t.HaveRelative {
+		t.US += t.Relative.US
+		t.S += t.Relative.S
+		t.I += t.Relative.I
+		t.H += t.Relative.H
+		t.D += t.Relative.D
+		t.M += t.Relative.M
+		t.Y += t.Relative.Y
+	}
+
+	// Handle first/last day of month
+	switch t.Relative.FirstLastDayOf {
+	case TIMELIB_SPECIAL_FIRST_DAY_OF_MONTH:
+		t.D = 1
+	case TIMELIB_SPECIAL_LAST_DAY_OF_MONTH:
+		t.D = 0
+		t.M++
+	}
+
+	timelib_do_normalize(t)
+}
+
+// doAdjustSpecial handles special relative time adjustments (late)
+func doAdjustSpecial(t *Time) {
+	if t.Relative.HaveSpecialRelative {
+		switch t.Relative.Special.Type {
+		case TIMELIB_SPECIAL_WEEKDAY:
+			// TODO: implement weekday special adjustments
+		}
+	}
+	timelib_do_normalize(t)
+	// Clear special relative
+	t.Relative.Special.Type = 0
+	t.Relative.Special.Amount = 0
+}
+
+// doAdjustSpecialEarly handles special relative time adjustments (early)
+func doAdjustSpecialEarly(t *Time) {
+	if t.Relative.HaveSpecialRelative {
+		switch t.Relative.Special.Type {
+		case TIMELIB_SPECIAL_DAY_OF_WEEK_IN_MONTH:
+			// TODO: implement day of week in month adjustments
+		}
+	}
 }
 
 // Unixtime2date converts Unix timestamp to date
@@ -487,16 +557,35 @@ func (t *Time) Unixtime2local(ts int64) {
 }
 
 // UpdateFromSSE updates time from seconds since epoch
+// This is the Go equivalent of timelib_update_from_sse
 func (t *Time) UpdateFromSSE() {
-	if t.SseUptodate {
-		return
-	}
+	sse := t.Sse
+	z := t.Z
+	dst := t.Dst
 
-	if t.IsLocaltime && t.TzInfo != nil {
-		t.Unixtime2local(t.Sse)
-	} else {
+	switch t.ZoneType {
+	case TIMELIB_ZONETYPE_ABBR, TIMELIB_ZONETYPE_OFFSET:
+		// For abbreviations and fixed offsets, just add the offset
+		t.Unixtime2gmt(t.Sse + int64(t.Z) + int64(t.Dst*3600))
+
+	case TIMELIB_ZONETYPE_ID:
+		// For timezone IDs, get the actual offset at this timestamp
+		if t.TzInfo != nil {
+			offset := int32(0)
+			GetTimeZoneOffsetInfo(t.Sse, t.TzInfo, &offset, nil, nil)
+			t.Unixtime2gmt(t.Sse + int64(offset))
+		} else {
+			t.Unixtime2gmt(t.Sse)
+		}
+
+	default:
 		t.Unixtime2gmt(t.Sse)
 	}
 
-	t.TimUptodate = true
+	// Restore original values
+	t.Sse = sse
+	t.IsLocaltime = true
+	t.HaveZone = true
+	t.Z = z
+	t.Dst = dst
 }

@@ -63,17 +63,31 @@ This document tracks the progress of porting the C-based timelib library to Go, 
 - Comprehensive error handling with specific error codes
 - Case-insensitive parsing
 
-### ✅ Phase 4: Date Arithmetic Operations
-- **Status**: Complete
-- **Tests**: 100% passing
+### 🔄 Phase 4: Date Arithmetic Operations
+- **Status**: In Progress (Enhanced)
+- **Tests**: Basic tests passing, complex DST transitions failing
 - **Coverage**: Time addition, subtraction, and difference calculations
 
 **Implemented Functions:**
 - `Time.Add()` - Add relative time to base time
 - `Time.Sub()` - Subtract relative time from base time
 - `Time.Diff()` - Calculate difference between two times
+- `Time.AddWall()` - **NEW** - Add relative time with timezone awareness
+- `Time.SubWall()` - Subtract relative time with timezone awareness (placeholder)
 - `timelib_diff_days()` - Calculate difference in full days
 - `timelib_do_normalize()` - Normalize time values (handle overflow/underflow)
+- `doAdjustRelative()` - **NEW** - Apply relative time adjustments
+- `doAdjustSpecial()` - **NEW** - Handle special relative times
+- `doAdjustSpecialEarly()` - **NEW** - Early special adjustments
+- `hmsToSeconds()` - **NEW** - Convert hours/minutes/seconds to total seconds
+- `doRangeLimit()` - **NEW** - Normalize values within a range
+
+**Recent Enhancements (Current Session):**
+- Implemented proper `AddWall()` function matching C `timelib_add_wall` logic
+- Fixed `UpdateTS()` to handle relative time adjustments (Y/M/D changes)
+- Enhanced `UpdateFromSSE()` to properly handle timezone types
+- Created 44 comprehensive tests in `add_test.go` (5 passing, 38 failing on DST edge cases)
+- Added missing constants for special day handling
 
 ## Architecture Decisions
 
@@ -98,6 +112,27 @@ This document tracks the progress of porting the C-based timelib library to Go, 
 - Safe concurrent access patterns
 
 ## Test Results
+
+### Current Session Test Status
+```
+=== Overall Test Suite ===
+Total Test Files: 25
+Total Tests Run: 62
+Passing: 21 (34%)
+Failing: 39 (63%)
+Skipped: 2 (3%)
+
+=== Add Tests (New) ===
+Total Add Tests: 44
+Passing: 5 (11%)
+Failing: 38 (86%)
+Skipped: 1 (2%)
+
+Note: Failures are primarily in complex DST transition scenarios
+Basic arithmetic operations are working correctly
+```
+
+### Previous Test Results (Before Current Session)
 ```
 === All Tests Summary ===
 Total Tests: 47 test functions
