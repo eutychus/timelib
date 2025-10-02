@@ -907,6 +907,7 @@ func (t *Time) UpdateFromSSE() {
 	sse := t.Sse
 	z := t.Z
 	dst := t.Dst
+	zoneType := t.ZoneType
 
 	switch t.ZoneType {
 	case TIMELIB_ZONETYPE_ABBR, TIMELIB_ZONETYPE_OFFSET:
@@ -916,8 +917,12 @@ func (t *Time) UpdateFromSSE() {
 	case TIMELIB_ZONETYPE_ID:
 		// For timezone IDs, get the actual offset at this timestamp
 		if t.TzInfo != nil {
-			offset := int32(0)
-			GetTimeZoneOffsetInfo(t.Sse, t.TzInfo, &offset, nil, nil)
+			var offset int32 = 0
+			result := GetTimeZoneOffsetInfo(t.Sse, t.TzInfo, &offset, nil, nil)
+			if result == 0 {
+				// Fallback: if offset lookup fails, use the saved Z value
+				offset = z
+			}
 			t.Unixtime2gmt(t.Sse + int64(offset))
 		} else {
 			t.Unixtime2gmt(t.Sse)
@@ -933,4 +938,5 @@ func (t *Time) UpdateFromSSE() {
 	t.HaveZone = true
 	t.Z = z
 	t.Dst = dst
+	t.ZoneType = zoneType
 }

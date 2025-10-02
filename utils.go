@@ -398,8 +398,12 @@ func (t *Time) AddWall(interval *RelTime) *Time {
 		// Add time component
 		if interval.US == 0 {
 			// Simple case: no microseconds
+			// Save base microseconds before UpdateFromSSE (which clears them)
+			baseUS := result.US
 			result.Sse += bias * hmsToSeconds(interval.H, interval.I, interval.S)
 			result.UpdateFromSSE()
+			// Restore base microseconds
+			result.US = baseUS
 		} else {
 			// Complex case: with microseconds
 			tempInterval := RelTimeClone(interval)
@@ -407,9 +411,12 @@ func (t *Time) AddWall(interval *RelTime) *Time {
 			// Normalize microseconds into seconds
 			doRangeLimit(0, 1000000, 1000000, &tempInterval.US, &tempInterval.S)
 
+			// Save base microseconds before UpdateFromSSE (which clears them)
+			baseUS := result.US
 			result.Sse += bias * hmsToSeconds(tempInterval.H, tempInterval.I, tempInterval.S)
 			result.UpdateFromSSE()
-			result.US += tempInterval.US * bias
+			// Add interval microseconds to base microseconds
+			result.US = baseUS + tempInterval.US*bias
 
 			timelib_do_normalize(result)
 			result.UpdateTS(nil)
@@ -432,26 +439,103 @@ func hmsToSeconds(h, i, s int64) int64 {
 }
 
 // doRangeLimit normalizes values within a range
+// Matches C function: do_range_limit from interval.c
 func doRangeLimit(start, end, adj int64, a, b *int64) {
 	if *a < start {
-		// Handle underflow
-		aPlus1 := *a + 1
-		*b -= (start - aPlus1) / adj + 1
-		*a += adj * ((start - aPlus1) / adj)
-		*a += adj
+		*b -= (start - *a - 1) / adj + 1
+		*a += adj * ((start - *a - 1) / adj + 1)
 	}
 	if *a >= end {
-		// Handle overflow
 		*b += *a / adj
 		*a -= adj * (*a / adj)
 	}
 }
 
 // SubWall subtracts relative time from base time (wall time version)
+// SubWall subtracts a relative time interval from the base time using wall clock semantics.
+// This properly handles DST transitions by working with wall clock time (local time)
+// rather than just epoch seconds.
+//
+// The function handles three cases:
+// 1. Weekday/special relative times: applies them through UpdateTS
+// 2. Simple intervals (no microseconds): adjusts SSE directly, then updates time fields
+// 3. Intervals with microseconds: adjusts both SSE and microsecond fields separately
+//
+// This matches the C function: timelib_sub_wall in interval.c
 func (t *Time) SubWall(interval *RelTime) *Time {
-	// For now, this is the same as Sub
-	// Wall time version would handle timezone transitions differently
-	return t.Sub(interval)
+	bias := int64(1)
+	result := TimeClone(t)
+
+	result.HaveRelative = true
+	result.SseUptodate = false
+
+	if interval.HaveWeekdayRelative || interval.HaveSpecialRelative {
+		// For weekday/special relative times, copy the interval to relative field
+		// and let UpdateTS handle it
+		result.Relative = *interval
+		result.UpdateTS(nil)
+		result.UpdateFromSSE()
+	} else {
+		// Handle the invert flag
+		if interval.Invert {
+			bias = -1
+		}
+
+		// Clear relative field and set up date component subtraction
+		result.Relative = RelTime{}
+		result.Relative.Y = 0 - (interval.Y * bias)
+		result.Relative.M = 0 - (interval.M * bias)
+		result.Relative.D = 0 - (interval.D * bias)
+
+		// If we have date components, update the timestamp
+		if result.Relative.Y != 0 || result.Relative.M != 0 || result.Relative.D != 0 {
+			result.UpdateTS(nil)
+		}
+
+		// Handle time components (H/I/S/US)
+		if interval.US == 0 {
+			// Simple case: no microseconds, just adjust SSE
+			// Save base microseconds before UpdateFromSSE (which clears them)
+			baseUS := result.US
+			hmsSeconds := hmsToSeconds(interval.H, interval.I, interval.S)
+			result.Sse -= bias * hmsSeconds
+			result.UpdateFromSSE()
+			// Restore base microseconds
+			result.US = baseUS
+		} else {
+			// Complex case: have microseconds
+			// Clone the interval and normalize microseconds
+			tempInterval := RelTimeClone(interval)
+
+			// Normalize microseconds into seconds using do_range_limit logic
+			doRangeLimit(0, 1000000, 1000000, &tempInterval.US, &tempInterval.S)
+
+			// Save base microseconds before UpdateFromSSE (which clears them)
+			baseUS := result.US
+			// Adjust SSE by H/I/S
+			hmsSeconds := hmsToSeconds(tempInterval.H, tempInterval.I, tempInterval.S)
+			result.Sse -= bias * hmsSeconds
+			result.UpdateFromSSE()
+
+			// Adjust microseconds: subtract interval microseconds from base microseconds
+			result.US = baseUS - tempInterval.US*bias
+
+			// Normalize the time fields
+			timelib_do_normalize(result)
+			result.UpdateTS(nil)
+		}
+
+		// Final normalization
+		timelib_do_normalize(result)
+	}
+
+	// Re-apply timezone if it's a timezone ID
+	if result.ZoneType == TIMELIB_ZONETYPE_ID {
+		SetTimezone(result, result.TzInfo)
+	}
+
+	result.HaveRelative = false
+	return result
 }
 
 // ParseZone parses timezone information from string
