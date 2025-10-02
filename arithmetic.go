@@ -618,13 +618,24 @@ func fetchTimezoneOffset(tz *TzInfo, ts int64) (*TTInfo, int64) {
 	}
 
 	// After last transition, use POSIX info or last transition
-	if ts >= tz.Trans[tz.Bit64.Timecnt-1] {
+	// RFC 8536: Timestamps ON the last transition use that transition's type
+	// Only timestamps AFTER the last transition use POSIX rules
+	if ts > tz.Trans[tz.Bit64.Timecnt-1] {
 		// Use POSIX info if available
 		if tz.PosixInfo != nil {
 			return fetchPosixTimezoneOffset(tz, ts)
 		}
 
-		// Fall back to last transition
+		// Fall back to last transition type
+		transIdx := tz.TransIdx[tz.Bit64.Timecnt-1]
+		if int(transIdx) < len(tz.Type) {
+			return &tz.Type[transIdx], tz.Trans[tz.Bit64.Timecnt-1]
+		}
+		return nil, 0
+	}
+
+	// If timestamp exactly equals the last transition, use it
+	if ts == tz.Trans[tz.Bit64.Timecnt-1] {
 		transIdx := tz.TransIdx[tz.Bit64.Timecnt-1]
 		if int(transIdx) < len(tz.Type) {
 			return &tz.Type[transIdx], tz.Trans[tz.Bit64.Timecnt-1]
@@ -633,6 +644,9 @@ func fetchTimezoneOffset(tz *TzInfo, ts int64) (*TTInfo, int64) {
 	}
 
 	// Binary search for the right transition
+	// RFC 8536: The type corresponding to a transition time specifies local time
+	// for timestamps starting at the given transition time and continuing up to,
+	// but not including, the next transition time.
 	left := uint64(0)
 	right := tz.Bit64.Timecnt - 1
 
@@ -642,6 +656,15 @@ func fetchTimezoneOffset(tz *TzInfo, ts int64) (*TTInfo, int64) {
 			right = mid
 		} else {
 			left = mid
+		}
+	}
+
+	// If timestamp exactly equals the right transition, use right instead of left
+	// This handles the case where ts is exactly at a transition boundary
+	if ts == tz.Trans[right] {
+		transIdx := tz.TransIdx[right]
+		if int(transIdx) < len(tz.Type) {
+			return &tz.Type[transIdx], tz.Trans[right]
 		}
 	}
 
@@ -707,30 +730,54 @@ func doAdjustSpecialEarly(t *Time) {
 }
 
 // Unixtime2date converts Unix timestamp to date
+// This matches the C function: timelib_unixtime2date
 func Unixtime2date(ts int64, y, m, d *int64) {
-	// Use the algorithm from howardhinnant.github.io/date_algorithms.html
-	z := ts / 86400
-	z += 719468
-	era := z / 146097
-	doe := z - era*146097
-	yoe := (doe - doe/1460 + doe/36524 - doe/146096) / 365
-	y_ := yoe + era*400
-	doy := doe - (365*yoe + yoe/4 - yoe/100)
-	mp := (5*doy + 2) / 153
-	d_ := doy - (153*mp+2)/5 + 1
-	m_ := mp + 3
+	// Calculate days since algorithm's epoch (0000-03-01)
+	// HINNANT_EPOCH_SHIFT = 719468 (days from 0000-03-01 to 1970-01-01)
+	days := ts / SECS_PER_DAY
+	days += 719468
 
-	if m_ > 12 {
-		m_ -= 12
-		y_++
+	// Adjustment for negative time portion
+	// If the time-of-day portion is negative, we need to go back one day
+	t := ts % SECS_PER_DAY
+	if t < 0 {
+		days--
 	}
 
-	*y = y_
-	*m = m_
-	*d = d_
+	// Calculate year, month, and day using Howard Hinnant's algorithm
+	// http://howardhinnant.github.io/date_algorithms.html#civil_from_days
+	var era int64
+	if days >= 0 {
+		era = days / 146097
+	} else {
+		era = (days - 146097 + 1) / 146097
+	}
+
+	dayOfEra := days - era*146097
+	yearOfEra := (dayOfEra - dayOfEra/1460 + dayOfEra/36524 - dayOfEra/146096) / 365
+	year := yearOfEra + era*400
+	dayOfYear := dayOfEra - (365*yearOfEra + yearOfEra/4 - yearOfEra/100)
+	monthPortion := (5*dayOfYear + 2) / 153
+	day := dayOfYear - (153*monthPortion+2)/5 + 1
+
+	var month int64
+	if monthPortion < 10 {
+		month = monthPortion + 3
+	} else {
+		month = monthPortion - 9
+	}
+
+	if month <= 2 {
+		year++
+	}
+
+	*y = year
+	*m = month
+	*d = day
 }
 
 // Unixtime2gmt converts Unix timestamp to GMT
+// This matches the C function: timelib_unixtime2gmt
 func (t *Time) Unixtime2gmt(ts int64) {
 	var y, m, d int64
 	Unixtime2date(ts, &y, &m, &d)
@@ -739,34 +786,67 @@ func (t *Time) Unixtime2gmt(ts int64) {
 	t.M = m
 	t.D = d
 
-	// Calculate remaining time
-	remaining := ts % 86400
-	if remaining < 0 {
-		remaining += 86400
+	// Calculate remaining time (time of day portion)
+	// For negative timestamps, we need to handle the remainder carefully
+	remainder := ts % SECS_PER_DAY
+	if remainder < 0 {
+		remainder += SECS_PER_DAY
 	}
 
-	t.H = remaining / 3600
-	remaining %= 3600
-	t.I = remaining / 60
-	t.S = remaining % 60
-	t.US = 0
+	hours := remainder / 3600
+	minutes := (remainder - hours*3600) / 60
+	seconds := remainder % 60
 
+	t.H = hours
+	t.I = minutes
+	t.S = seconds
+	t.US = 0
+	t.Z = 0
+	t.Dst = 0
+	t.Sse = ts
+	t.SseUptodate = true
 	t.IsLocaltime = false
 	t.ZoneType = TIMELIB_ZONETYPE_NONE
-	t.SseUptodate = true
 }
 
 // Unixtime2local converts Unix timestamp to local time
+// This matches the C function: timelib_unixtime2local
 func (t *Time) Unixtime2local(ts int64) {
-	// First convert to GMT
-	t.Unixtime2gmt(ts)
+	switch t.ZoneType {
+	case TIMELIB_ZONETYPE_ABBR, TIMELIB_ZONETYPE_OFFSET:
+		// For fixed offsets, just add the offset
+		z := t.Z
+		dst := t.Dst
+		t.Unixtime2gmt(ts + int64(t.Z) + int64(t.Dst*3600))
+		t.Sse = ts
+		t.Z = z
+		t.Dst = dst
 
-	// Then apply timezone if available
-	if t.TzInfo != nil {
-		// For now, we'll set basic timezone info
-		// Full timezone implementation will come later
-		t.ZoneType = TIMELIB_ZONETYPE_ID
-		t.IsLocaltime = true
+	case TIMELIB_ZONETYPE_ID:
+		if t.TzInfo != nil {
+			// Get timezone offset for this timestamp
+			gmtOffset := GetTimeZoneInfo(ts, t.TzInfo)
+			if gmtOffset != nil {
+				t.Unixtime2gmt(ts + int64(gmtOffset.Offset))
+
+				// Restore original timestamp and set timezone info
+				t.Sse = ts
+				t.Dst = gmtOffset.IsDst
+				t.Z = gmtOffset.Offset
+				t.TzInfo = t.TzInfo
+				t.TzAbbr = gmtOffset.Abbr
+			} else {
+				t.Unixtime2gmt(ts)
+				t.Sse = ts
+			}
+		} else {
+			t.Unixtime2gmt(ts)
+			t.Sse = ts
+		}
+
+	default:
+		t.Unixtime2gmt(ts)
+		t.Sse = ts
 	}
 }
 

@@ -82,8 +82,23 @@ func ParsePosixString(posix string, tz *TzInfo) (*PosixStr, error) {
 
 	// Check if there's DST information
 	if pos >= len(posix) {
-		// No DST, create type info
-		if tz != nil {
+		// No DST, find matching standard type
+		if tz != nil && len(tz.Type) > 0 {
+			ps.TypeIndexStdType = findTTInfoIndex(tz, int32(ps.StdOffset), 0, ps.Std)
+			if ps.TypeIndexStdType == -1 {
+				// If not found, use first non-DST type as fallback
+				for i, t := range tz.Type {
+					if t.IsDst == 0 {
+						ps.TypeIndexStdType = i
+						break
+					}
+				}
+				if ps.TypeIndexStdType == -1 {
+					ps.TypeIndexStdType = 0
+				}
+			}
+			ps.TypeIndexDstType = -1
+		} else if tz != nil {
 			ps.TypeIndexStdType = 0
 			ps.TypeIndexDstType = -1
 		}
