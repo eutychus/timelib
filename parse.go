@@ -80,6 +80,10 @@ func (p *StringParser) Parse() *ParseResult {
 		result.Time.HaveZone = result.HasZone
 		return result
 	}
+	// If parseTimestamp added an error (e.g., "@7."), don't try other parsers
+	if p.errors.ErrorCount > 0 && strings.HasPrefix(p.input, "@") {
+		return result
+	}
 
 	// Handle ISO 8601 formats
 	if p.parseISO8601(result) {
@@ -103,6 +107,8 @@ func (p *StringParser) Parse() *ParseResult {
 
 	// Handle common date formats
 	if p.parseCommonFormats(result) {
+		// Check for trailing relative expression
+		p.parseTrailingRelative(result)
 		// Copy flags from ParseResult to Time structure
 		result.Time.HaveDate = result.HasDate
 		result.Time.HaveTime = result.HasTime
@@ -113,6 +119,8 @@ func (p *StringParser) Parse() *ParseResult {
 
 	// If nothing matched, try generic parsing
 	if p.parseGeneric(result) {
+		// Check for trailing relative expression
+		p.parseTrailingRelative(result)
 		// Copy flags from ParseResult to Time structure
 		result.Time.HaveDate = result.HasDate
 		result.Time.HaveTime = result.HasTime
@@ -200,6 +208,10 @@ func (p *StringParser) parseTimestamp(result *ParseResult) bool {
 
 		// Parse fractional part
 		fracStr := parts[1]
+		if len(fracStr) == 0 {
+			p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid fractional seconds")
+			return false
+		}
 		if len(fracStr) > 6 {
 			fracStr = fracStr[:6]
 		}
@@ -228,19 +240,21 @@ func (p *StringParser) parseTimestamp(result *ParseResult) bool {
 		microseconds = -microseconds
 	}
 
-	// Set Unix epoch base date
-	result.Time.Y = 1970
-	result.Time.M = 1
-	result.Time.D = 1
-	result.Time.H = 0
-	result.Time.I = 0
-	result.Time.S = 0
-	result.Time.US = 0
+	// Set the SSE directly (Unix timestamp)
+	result.Time.Sse = timestamp
+	result.Time.US = microseconds
+	result.Time.SseUptodate = true
+	result.Time.IsLocaltime = false
 
-	// Set relative time
-	result.HasRelative = true
-	result.Time.Relative.S = timestamp
-	result.Time.Relative.US = microseconds
+	// Convert SSE to date/time fields (UTC)
+	result.Time.Unixtime2gmt(timestamp)
+	result.Time.US = microseconds // Restore microseconds after Unixtime2gmt
+
+	result.HasDate = true
+	result.HasTime = true
+	result.Time.ZoneType = TIMELIB_ZONETYPE_OFFSET
+	result.Time.Z = 0
+	result.Time.Dst = 0
 
 	return true
 }
@@ -322,7 +336,12 @@ func (p *StringParser) parseRelative(result *ParseResult) bool {
 		pattern string
 		handler func(*ParseResult, []string) bool
 	}{
-		{`^([+-]?\d+)\s+(second|minute|hour|day|week|month|year)s?$`, p.parseRelativeUnit},
+		// "first day of January 2023", "last day of next month"
+		{`^(first|last)\s+day\s+of(?:\s+(.+))?$`, p.parseFirstLastDayOf},
+		// "-50000 msec", "+1 microsecond", etc.
+		{`^([+-]?\d+)\s+(microsecond|microseconds|usec|usecs|µsec|millisecond|milliseconds|msec|msecs|ms|second|seconds|sec|secs|minute|minutes|min|mins|hour|hours|day|days|week|weeks|fortnight|fortnights|month|months|year|years)$`, p.parseRelativeUnit},
+		// "next Monday", "last Friday", "this Saturday"
+		{`^(next|last|this)\s+(monday|mon|tuesday|tue|wednesday|wed|thursday|thu|friday|fri|saturday|sat|sunday|sun)$`, p.parseRelativeWeekday},
 		{`^(next|last|this)\s+(second|minute|hour|day|week|month|year)$`, p.parseRelativeText},
 		{`^(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)\s+(second|minute|hour|day|week|month|year)$`, p.parseRelativeOrdinal},
 	}
@@ -348,20 +367,26 @@ func (p *StringParser) parseRelativeUnit(result *ParseResult, matches []string) 
 	unit := matches[2]
 	result.HasRelative = true
 
-	switch unit {
-	case "second":
+	switch {
+	case strings.HasPrefix(unit, "microsecond") || strings.HasPrefix(unit, "usec") || unit == "µsec":
+		result.Time.Relative.US = amount
+	case strings.HasPrefix(unit, "millisecond") || strings.HasPrefix(unit, "msec") || unit == "ms":
+		result.Time.Relative.US = amount * 1000
+	case strings.HasPrefix(unit, "second") || strings.HasPrefix(unit, "sec"):
 		result.Time.Relative.S = amount
-	case "minute":
+	case strings.HasPrefix(unit, "minute") || strings.HasPrefix(unit, "min"):
 		result.Time.Relative.I = amount
-	case "hour":
+	case strings.HasPrefix(unit, "hour"):
 		result.Time.Relative.H = amount
-	case "day":
+	case strings.HasPrefix(unit, "day"):
 		result.Time.Relative.D = amount
-	case "week":
+	case strings.HasPrefix(unit, "week"):
 		result.Time.Relative.D = amount * 7
-	case "month":
+	case strings.HasPrefix(unit, "fortnight"):
+		result.Time.Relative.D = amount * 14
+	case strings.HasPrefix(unit, "month"):
 		result.Time.Relative.M = amount
-	case "year":
+	case strings.HasPrefix(unit, "year"):
 		result.Time.Relative.Y = amount
 	default:
 		return false
@@ -465,6 +490,56 @@ func (p *StringParser) parseRelativeOrdinal(result *ParseResult, matches []strin
 		result.Time.Relative.Y = amount
 	default:
 		return false
+	}
+
+	return true
+}
+
+// parseRelativeWeekday handles "next Monday", "last Friday", etc.
+func (p *StringParser) parseRelativeWeekday(result *ParseResult, matches []string) bool {
+	text := matches[1]      // next, last, this
+	weekdayStr := matches[2] // monday, tue, etc.
+
+	// Map weekday names to day numbers (0=Sunday, 1=Monday, ..., 6=Saturday)
+	weekdayMap := map[string]int{
+		"sunday": 0, "sun": 0,
+		"monday": 1, "mon": 1,
+		"tuesday": 2, "tue": 2,
+		"wednesday": 3, "wed": 3,
+		"thursday": 4, "thu": 4,
+		"friday": 5, "fri": 5,
+		"saturday": 6, "sat": 6,
+	}
+
+	weekday, ok := weekdayMap[weekdayStr]
+	if !ok {
+		return false
+	}
+
+	result.HasRelative = true
+	result.HasDate = true // Weekday relatives imply a date
+	result.Time.HaveRelative = true
+	result.Time.HaveDate = true
+	result.Time.Relative.HaveWeekdayRelative = true
+	result.Time.Relative.Weekday = weekday
+
+	// WeekdayBehavior controls how "next/last/this" works
+	// 0 = don't count current day when advancing (default for "next")
+	// 1 = count current day when advancing (default for "last")
+	// 2 = special handling for "this"
+	// Note: C code uses formula: relative.d = (amount - 1) * 7
+	// For "next" (amount=1): relative.d = 0
+	// For "last" (amount=-1): relative.d = -7
+	switch text {
+	case "next":
+		result.Time.Relative.D = 0 // C: (1-1)*7 = 0
+		result.Time.Relative.WeekdayBehavior = 0
+	case "last":
+		result.Time.Relative.D = -7 // C: (-1)*7 = -7
+		result.Time.Relative.WeekdayBehavior = 1
+	case "this":
+		result.Time.Relative.D = 0 // Stay in current week
+		result.Time.Relative.WeekdayBehavior = 2
 	}
 
 	return true
@@ -699,10 +774,22 @@ func (p *StringParser) parseGeneric(result *ParseResult) bool {
 		"15:04:05",
 		"01/02/2006",
 		"02/01/2006",
+		// RFC 2822 formats (with and without weekday prefix)
+		"Mon, 2 Jan 2006 15:04:05 -0700",
+		"2 Jan 2006 15:04:05 -0700",
+		"2 Jan 2006 15:04:05",
 		"Jan 2, 2006",
 		"January 2, 2006",
 		"2 Jan 2006",
 		"2 January 2006",
+		// Bare weekday names (for "Monday 03:59:59" type inputs)
+		"Monday",
+		"Tuesday",
+		"Wednesday",
+		"Thursday",
+		"Friday",
+		"Saturday",
+		"Sunday",
 	}
 
 	// Try to find a match by attempting to parse progressively longer prefixes
@@ -728,21 +815,46 @@ func (p *StringParser) parseGeneric(result *ParseResult) bool {
 				// Found a match! Apply the parsed values
 				p.applyParsedTime(&t, result, format)
 
-				// Check if there's remaining content that might be timezone info
+				// Check if there's remaining content that might be time or timezone info
 				if tryLen < len(normalizedInput) {
-					remaining := normalizedInput[tryLen:]
-					// Call ParseZone on the remaining content (like C does)
-					var dst int
-					tzNotFound := 0
-					offset := ParseZone(&remaining, &dst, result.Time, &tzNotFound, BuiltinDB(), ParseTzfile)
-					if tzNotFound == 0 {
-						// Successfully parsed timezone
-						result.Time.Z = int32(offset)
-						result.Time.Dst = dst
-						result.HasZone = true
-						result.Time.IsLocaltime = true
-						result.Time.HaveZone = true
-						// ZoneType will be set by ParseZone
+					remaining := strings.TrimSpace(normalizedInput[tryLen:])
+
+					// First try to parse as time (for cases like "Monday 03:59:59")
+					timeFormats := []string{"15:04:05", "15:04", "3:04:05 PM", "3:04 PM"}
+					for _, tf := range timeFormats {
+						if len(remaining) >= len(tf) {
+							tRemaining, err := time.Parse(tf, remaining[:len(tf)])
+							if err == nil {
+								result.Time.H = int64(tRemaining.Hour())
+								result.Time.I = int64(tRemaining.Minute())
+								result.Time.S = int64(tRemaining.Second())
+								result.HasTime = true
+								result.Time.HaveTime = true
+								// Check if there's still more content after the time
+								if len(remaining) > len(tf) {
+									remaining = strings.TrimSpace(remaining[len(tf):])
+								} else {
+									remaining = ""
+								}
+								break
+							}
+						}
+					}
+
+					// Then try to parse timezone if there's remaining content
+					if remaining != "" {
+						var dst int
+						tzNotFound := 0
+						offset := ParseZone(&remaining, &dst, result.Time, &tzNotFound, BuiltinDB(), ParseTzfile)
+						if tzNotFound == 0 {
+							// Successfully parsed timezone
+							result.Time.Z = int32(offset)
+							result.Time.Dst = dst
+							result.HasZone = true
+							result.Time.IsLocaltime = true
+							result.Time.HaveZone = true
+							// ZoneType will be set by ParseZone
+						}
 					}
 				}
 
@@ -759,6 +871,38 @@ func (p *StringParser) parseGeneric(result *ParseResult) bool {
 
 // applyParsedTime applies a parsed Go time.Time to the result
 func (p *StringParser) applyParsedTime(t *time.Time, result *ParseResult, format string) {
+	// Check if this is a bare weekday format
+	weekdayFormats := []string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"}
+	isWeekdayOnly := false
+	for _, wf := range weekdayFormats {
+		if format == wf {
+			isWeekdayOnly = true
+			break
+		}
+	}
+
+	if isWeekdayOnly {
+		// Bare weekday: set weekday relative flags
+		// Map format string to weekday number
+		weekdayMap := map[string]int{
+			"Sunday":    0,
+			"Monday":    1,
+			"Tuesday":   2,
+			"Wednesday": 3,
+			"Thursday":  4,
+			"Friday":    5,
+			"Saturday":  6,
+		}
+		weekday := weekdayMap[format]
+		result.HasRelative = true
+		result.Time.HaveRelative = true
+		result.Time.Relative.HaveWeekdayRelative = true
+		result.Time.Relative.Weekday = weekday
+		result.Time.Relative.WeekdayBehavior = 1 // default behavior for bare weekday
+		// Don't set HasTime or HasDate - let the remaining content set those
+		return
+	}
+
 	// Check if the format includes date components
 	hasDateInFormat := strings.Contains(format, "2006") || strings.Contains(format, "Jan") || strings.Contains(format, "01/") || strings.Contains(format, "02/")
 
@@ -779,6 +923,16 @@ func (p *StringParser) applyParsedTime(t *time.Time, result *ParseResult, format
 	result.Time.S = int64(t.Second())
 	result.Time.US = int64(t.Nanosecond() / 1000)
 	result.HasTime = true
+
+	// Extract timezone offset if the format includes timezone
+	if strings.Contains(format, "-0700") || strings.Contains(format, "Z07:00") || strings.Contains(format, "MST") {
+		_, offset := t.Zone()
+		result.Time.Z = int32(offset)
+		result.HasZone = true
+		result.Time.IsLocaltime = true
+		result.Time.HaveZone = true
+		result.Time.ZoneType = TIMELIB_ZONETYPE_OFFSET
+	}
 }
 
 func (p *StringParser) addError(code int, message string) {
@@ -809,4 +963,125 @@ func Strtotime(input string) (*Time, *ErrorContainer) {
 // StrtotimeWithOptions parses a date/time string with options
 func StrtotimeWithOptions(input string, options ParseOptions) (*Time, *ErrorContainer) {
 	return ParseStrtotime(input, options)
+}
+
+// parseTrailingRelative checks for and parses trailing relative time expressions
+// like "+1 microsecond", "-2 days", etc.
+func (p *StringParser) parseTrailingRelative(result *ParseResult) {
+	// This function is called after the main datetime has been parsed
+	// The position should be at the end of the parsed datetime
+	// We need to look at the original input to find any trailing content
+	
+	// For formats that use regex with $ anchor, there won't be trailing content
+	// For parseGeneric, trailing content is already handled
+	// So this function is mainly for formats that might have whitespace + relative
+	
+	// Pattern: optional whitespace, optional +/-, number, whitespace, unit
+	relPattern := regexp.MustCompile(`\s*([+-]?\d+)\s+(microsecond|microseconds|usec|usecs|µsec|millisecond|milliseconds|msec|msecs|ms|second|seconds|sec|secs|minute|minutes|min|mins|hour|hours|day|days|week|weeks|fortnight|fortnights|month|months|year|years)s?$`)
+	
+	matches := relPattern.FindStringSubmatch(p.input)
+	if matches == nil {
+		return
+	}
+	
+	// Parse the number
+	num, err := strconv.ParseInt(matches[1], 10, 64)
+	if err != nil {
+		return
+	}
+	
+	// Parse the unit
+	unit := strings.ToLower(matches[2])
+	
+	// Set the relative time
+	result.HasRelative = true
+	result.Time.HaveRelative = true
+	
+	switch {
+	case strings.HasPrefix(unit, "microsecond") || strings.HasPrefix(unit, "usec") || unit == "µsec":
+		result.Time.Relative.US += num
+	case strings.HasPrefix(unit, "millisecond") || strings.HasPrefix(unit, "msec") || unit == "ms":
+		result.Time.Relative.US += num * 1000
+	case strings.HasPrefix(unit, "second") || strings.HasPrefix(unit, "sec"):
+		result.Time.Relative.S += num
+	case strings.HasPrefix(unit, "minute") || strings.HasPrefix(unit, "min"):
+		result.Time.Relative.I += num
+	case strings.HasPrefix(unit, "hour"):
+		result.Time.Relative.H += num
+	case strings.HasPrefix(unit, "day"):
+		result.Time.Relative.D += num
+	case strings.HasPrefix(unit, "week"):
+		result.Time.Relative.D += num * 7
+	case strings.HasPrefix(unit, "fortnight"):
+		result.Time.Relative.D += num * 14
+	case strings.HasPrefix(unit, "month"):
+		result.Time.Relative.M += num
+	case strings.HasPrefix(unit, "year"):
+		result.Time.Relative.Y += num
+	}
+}
+
+// parseFirstLastDayOf handles "first day of" and "last day of" expressions
+func (p *StringParser) parseFirstLastDayOf(result *ParseResult, matches []string) bool {
+	firstOrLast := matches[1]
+	remainder := ""
+	if len(matches) > 2 {
+		remainder = strings.TrimSpace(matches[2])
+	}
+
+	result.HasRelative = true
+	result.Time.Relative.HaveSpecialRelative = true
+
+	// Set the first_last_day_of flag
+	if firstOrLast == "first" {
+		result.Time.Relative.FirstLastDayOf = TIMELIB_SPECIAL_FIRST_DAY_OF_MONTH
+	} else {
+		result.Time.Relative.FirstLastDayOf = TIMELIB_SPECIAL_LAST_DAY_OF_MONTH
+	}
+
+	// Initialize D to 1 to avoid UNSET issues
+	result.Time.D = 1
+
+	// Parse the remainder (month name, "next month", etc.)
+	if remainder != "" {
+		// Try to parse as month name + year
+		monthNames := map[string]int64{
+			"january": 1, "jan": 1,
+			"february": 2, "feb": 2,
+			"march": 3, "mar": 3,
+			"april": 4, "apr": 4,
+			"may": 5,
+			"june": 6, "jun": 6,
+			"july": 7, "jul": 7,
+			"august": 8, "aug": 8,
+			"september": 9, "sep": 9, "sept": 9,
+			"october": 10, "oct": 10,
+			"november": 11, "nov": 11,
+			"december": 12, "dec": 12,
+		}
+
+		parts := strings.Fields(remainder)
+		if len(parts) > 0 {
+			monthName := strings.ToLower(parts[0])
+			if month, ok := monthNames[monthName]; ok {
+				result.Time.M = month
+				result.HasDate = true
+
+				// Check for year
+				if len(parts) > 1 {
+					if year, err := strconv.ParseInt(parts[1], 10, 64); err == nil {
+						result.Time.Y = year
+					}
+				}
+			} else if remainder == "next month" {
+				result.Time.Relative.M = 1
+			} else if remainder == "this month" {
+				result.Time.Relative.M = 0
+			} else if remainder == "last month" {
+				result.Time.Relative.M = -1
+			}
+		}
+	}
+
+	return true
 }

@@ -86,6 +86,16 @@ func ParseFromFormat(format, input string) (*Time, *ErrorContainer) {
 			{'V', TIMELIB_FORMAT_WEEK_OF_YEAR_ISO},
 			{'v', TIMELIB_FORMAT_MILLISECOND_THREE_DIGIT},
 			{'S', TIMELIB_FORMAT_DAY_SUFFIX},
+			{'x', TIMELIB_FORMAT_YEAR_EXPANDED},
+			{'X', TIMELIB_FORMAT_YEAR_EXPANDED},
+			{':', TIMELIB_FORMAT_SEPARATOR},
+			{'/', TIMELIB_FORMAT_SEPARATOR},
+			{'.', TIMELIB_FORMAT_SEPARATOR},
+			{',', TIMELIB_FORMAT_SEPARATOR},
+			{'-', TIMELIB_FORMAT_SEPARATOR},
+			{'(', TIMELIB_FORMAT_SEPARATOR},
+			{')', TIMELIB_FORMAT_SEPARATOR},
+			{';', TIMELIB_FORMAT_SEPARATOR},
 		},
 		PrefixChar: 0,
 	}
@@ -229,6 +239,8 @@ func (p *FormatParser) parseFormatSpecifier(spec *FormatSpecifier) bool {
 		return p.parseYearFourDigit()
 	case TIMELIB_FORMAT_YEAR_TWO_DIGIT:
 		return p.parseYearTwoDigit()
+	case TIMELIB_FORMAT_YEAR_EXPANDED:
+		return p.parseYearExpanded()
 	case TIMELIB_FORMAT_YEAR_ISO:
 		return p.parseYearISO()
 	case TIMELIB_FORMAT_MONTH_TWO_DIGIT_PADDED:
@@ -345,6 +357,48 @@ func (p *FormatParser) parseYearTwoDigit() bool {
 
 	p.time.Y = year
 	p.position += 2
+	return true
+}
+
+// parseYearExpanded parses an expanded year with optional sign and up to 19 digits
+func (p *FormatParser) parseYearExpanded() bool {
+	if p.position >= len(p.input) {
+		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected expanded year")
+		return false
+	}
+
+	// Check for optional sign
+	sign := int64(1)
+	start := p.position
+	if p.input[p.position] == '+' || p.input[p.position] == '-' {
+		if p.input[p.position] == '-' {
+			sign = -1
+		}
+		p.position++
+	}
+
+	// Parse up to 19 digits
+	digitStart := p.position
+	for p.position < len(p.input) && p.position-digitStart < 19 && p.input[p.position] >= '0' && p.input[p.position] <= '9' {
+		p.position++
+	}
+
+	if p.position == digitStart {
+		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected digits in expanded year")
+		p.position = start // Reset position
+		return false
+	}
+
+	yearStr := p.input[digitStart:p.position]
+	year, err := strconv.ParseInt(yearStr, 10, 64)
+	if err != nil {
+		p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid expanded year")
+		p.position = start // Reset position
+		return false
+	}
+
+	p.time.Y = year * sign
+	p.time.HaveDate = true
 	return true
 }
 

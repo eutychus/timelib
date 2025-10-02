@@ -161,10 +161,28 @@ func FillHoles(parsed, now *Time, options int) {
 		return
 	}
 
-	// Handle microseconds
-	if parsed.US == 0 && now.US != 0 {
-		if options&TIMELIB_OVERRIDE_TIME == 0 {
-			parsed.US = now.US
+	// If have_date but not have_time, reset time to midnight (C behavior)
+	// This is crucial for weekday relatives like "next Saturday"
+	if (options&TIMELIB_OVERRIDE_TIME == 0) && parsed.HaveDate && !parsed.HaveTime {
+		parsed.H = 0
+		parsed.I = 0
+		parsed.S = 0
+		parsed.US = 0
+	}
+
+	// Handle microseconds according to C implementation
+	if parsed.Y != TIMELIB_UNSET || parsed.M != TIMELIB_UNSET || parsed.D != TIMELIB_UNSET ||
+		parsed.H != TIMELIB_UNSET || parsed.I != TIMELIB_UNSET || parsed.S != TIMELIB_UNSET {
+		if parsed.US == TIMELIB_UNSET {
+			parsed.US = 0
+		}
+	} else {
+		if parsed.US == TIMELIB_UNSET {
+			if now.US != TIMELIB_UNSET {
+				parsed.US = now.US
+			} else {
+				parsed.US = 0
+			}
 		}
 	}
 

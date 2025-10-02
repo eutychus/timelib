@@ -4,11 +4,9 @@ import "math"
 
 const INT64_MIN = math.MinInt64
 
-// Add adds the relative time information 'interval' to the base time 't'.
-// This can be a relative time as created by 'timelib_diff', but also by more
-// complex statements such as "next workday".
-func (t *Time) Add(interval *RelTime) *Time {
-	result := &Time{
+// Clone creates a deep copy of the Time struct
+func (t *Time) Clone() *Time {
+	clone := &Time{
 		Y:             t.Y,
 		M:             t.M,
 		D:             t.D,
@@ -20,7 +18,7 @@ func (t *Time) Add(interval *RelTime) *Time {
 		TzAbbr:        t.TzAbbr,
 		TzInfo:        t.TzInfo,
 		Dst:           t.Dst,
-		Relative:      t.Relative, // RelTime is a value type, so this copies it
+		Relative:      t.Relative,
 		Sse:           t.Sse,
 		HaveTime:      t.HaveTime,
 		HaveDate:      t.HaveDate,
@@ -32,95 +30,47 @@ func (t *Time) Add(interval *RelTime) *Time {
 		IsLocaltime:   t.IsLocaltime,
 		ZoneType:      t.ZoneType,
 	}
+	return clone
+}
 
-	// Add years
-	if interval.Y != 0 {
-		result.Y += interval.Y
-	}
+// Add adds the relative time information 'interval' to the base time 't'.
+// This can be a relative time as created by 'timelib_diff', but also by more
+// complex statements such as "next workday".
+func (t *Time) Add(interval *RelTime) *Time {
+	var bias int64 = 1
 
-	// Add months
-	if interval.M != 0 {
-		result.M += interval.M
-		// Handle month overflow/underflow
-		for result.M > 12 {
-			result.M -= 12
-			result.Y++
+	// Clone the time
+	result := t.Clone()
+
+	// Handle weekday or special relatives
+	if interval.HaveWeekdayRelative || interval.HaveSpecialRelative {
+		// Copy entire interval to relative field
+		result.Relative = *interval
+	} else {
+		// Apply bias if interval is inverted
+		if interval.Invert {
+			bias = -1
 		}
-		for result.M < 1 {
-			result.M += 12
-			result.Y--
-		}
+		// Clear relative and set individual fields with bias
+		result.Relative = RelTime{}
+		result.Relative.Y = interval.Y * bias
+		result.Relative.M = interval.M * bias
+		result.Relative.D = interval.D * bias
+		result.Relative.H = interval.H * bias
+		result.Relative.I = interval.I * bias
+		result.Relative.S = interval.S * bias
+		result.Relative.US = interval.US * bias
 	}
 
-	// Add days
-	if interval.D != 0 {
-		result.D += interval.D
-		// Normalize days (handle month boundaries)
-		timelib_do_normalize(result)
-	}
+	result.HaveRelative = true
+	result.SseUptodate = false
 
-	// Add hours, minutes, seconds
-	if interval.H != 0 {
-		result.H += interval.H
-	}
-	if interval.I != 0 {
-		result.I += interval.I
-	}
-	if interval.S != 0 {
-		result.S += interval.S
-	}
-	if interval.US != 0 {
-		result.US += interval.US
-	}
+	// Convert date+time+relative to SSE
+	result.UpdateTS(nil)
 
-	// Handle microseconds overflow
-	if result.US >= 1000000 || result.US < 0 {
-		extraSeconds := result.US / 1000000
-		result.S += extraSeconds
-		result.US = result.US % 1000000
-		if result.US < 0 {
-			result.US += 1000000
-			result.S--
-		}
-	}
-
-	// Handle seconds overflow
-	if result.S >= 60 || result.S < 0 {
-		extraMinutes := result.S / 60
-		result.I += extraMinutes
-		result.S = result.S % 60
-		if result.S < 0 {
-			result.S += 60
-			result.I--
-		}
-	}
-
-	// Handle minutes overflow
-	if result.I >= 60 || result.I < 0 {
-		extraHours := result.I / 60
-		result.H += extraHours
-		result.I = result.I % 60
-		if result.I < 0 {
-			result.I += 60
-			result.H--
-		}
-	}
-
-	// Handle hours overflow
-	if result.H >= 24 || result.H < 0 {
-		extraDays := result.H / 24
-		result.D += extraDays
-		result.H = result.H % 24
-		if result.H < 0 {
-			result.H += 24
-			result.D--
-		}
-	}
-
-	// Final normalization for any day overflow from hour adjustments
-	if result.D < 1 || result.D > DaysInMonth(result.Y, result.M) {
-		timelib_do_normalize(result)
-	}
+	// Convert SSE back to date+time fields
+	result.UpdateFromSSE()
+	result.HaveRelative = false
 
 	return result
 }
@@ -128,36 +78,37 @@ func (t *Time) Add(interval *RelTime) *Time {
 // Sub subtracts the relative time information 'interval' from the base time 't'.
 // Unlike with 'Add', this does not support more complex statements such as "next workday".
 func (t *Time) Sub(interval *RelTime) *Time {
-	// Create inverted interval
-	inverted := &RelTime{
-		Y:                   interval.Y,
-		M:                   interval.M,
-		D:                   interval.D,
-		H:                   interval.H,
-		I:                   interval.I,
-		S:                   interval.S,
-		US:                  interval.US,
-		Weekday:             interval.Weekday,
-		WeekdayBehavior:     interval.WeekdayBehavior,
-		FirstLastDayOf:      interval.FirstLastDayOf,
-		Invert:              interval.Invert,
-		Days:                interval.Days,
-		Special:             interval.Special,
-		HaveWeekdayRelative: interval.HaveWeekdayRelative,
-		HaveSpecialRelative: interval.HaveSpecialRelative,
+	var bias int64 = 1
+
+	// Clone the time
+	result := t.Clone()
+
+	// Apply bias if interval is inverted
+	if interval.Invert {
+		bias = -1
 	}
-	inverted.Invert = !inverted.Invert
 
-	// Negate all values
-	inverted.Y = -inverted.Y
-	inverted.M = -inverted.M
-	inverted.D = -inverted.D
-	inverted.H = -inverted.H
-	inverted.I = -inverted.I
-	inverted.S = -inverted.S
-	inverted.US = -inverted.US
+	// Clear relative and set individual fields negated with bias
+	result.Relative = RelTime{}
+	result.Relative.Y = -(interval.Y * bias)
+	result.Relative.M = -(interval.M * bias)
+	result.Relative.D = -(interval.D * bias)
+	result.Relative.H = -(interval.H * bias)
+	result.Relative.I = -(interval.I * bias)
+	result.Relative.S = -(interval.S * bias)
+	result.Relative.US = -(interval.US * bias)
 
-	return t.Add(inverted)
+	result.HaveRelative = true
+	result.SseUptodate = false
+
+	// Convert date+time+relative to SSE
+	result.UpdateTS(nil)
+
+	// Convert SSE back to date+time fields
+	result.UpdateFromSSE()
+	result.HaveRelative = false
+
+	return result
 }
 
 // Diff calculates the difference between two times.
@@ -344,56 +295,41 @@ func timelib_diff_days(one, two *Time) int {
 }
 
 // timelib_do_normalize normalizes the time values (handles overflow/underflow)
+// do_range_limit normalizes field 'a' to be within [start, end) and carries overflow/underflow to field 'b'
+// This matches the C implementation's do_range_limit function
+func do_range_limit(start, end, adj int64, a, b *int64) {
+	if *a < start {
+		// Handle underflow - borrow from next higher unit
+		// We calculate 'a + 1' first to avoid int64 overflow
+		a_plus_1 := *a + 1
+		*b -= (start-a_plus_1)/adj + 1
+		*a += adj * ((start - a_plus_1) / adj)
+		*a += adj
+	}
+	if *a >= end {
+		// Handle overflow - carry to next higher unit
+		*b += *a / adj
+		*a -= adj * (*a / adj)
+	}
+}
+
 func timelib_do_normalize(t *Time) {
-	// Normalize microseconds
-	if t.US >= 1000000 {
-		extraSeconds := t.US / 1000000
-		t.S += extraSeconds
-		t.US = t.US % 1000000
-	} else if t.US < 0 {
-		t.S--
-		t.US += 1000000
+	// Use do_range_limit to match C implementation exactly
+	if t.US != TIMELIB_UNSET {
+		do_range_limit(0, 1000000, 1000000, &t.US, &t.S)
+	}
+	if t.S != TIMELIB_UNSET {
+		do_range_limit(0, 60, 60, &t.S, &t.I)
+	}
+	if t.I != TIMELIB_UNSET {
+		do_range_limit(0, 60, 60, &t.I, &t.H)
+	}
+	if t.H != TIMELIB_UNSET {
+		do_range_limit(0, 24, 24, &t.H, &t.D)
 	}
 
-	// Normalize seconds
-	if t.S >= 60 {
-		extraMinutes := t.S / 60
-		t.I += extraMinutes
-		t.S = t.S % 60
-	} else if t.S < 0 {
-		t.I--
-		t.S += 60
-	}
-
-	// Normalize minutes
-	if t.I >= 60 {
-		extraHours := t.I / 60
-		t.H += extraHours
-		t.I = t.I % 60
-	} else if t.I < 0 {
-		t.H--
-		t.I += 60
-	}
-
-	// Normalize hours
-	if t.H >= 24 {
-		extraDays := t.H / 24
-		t.D += extraDays
-		t.H = t.H % 24
-	} else if t.H < 0 {
-		t.D--
-		t.H += 24
-	}
-
-	// Normalize months first (handle month overflow/underflow)
-	for t.M > 12 {
-		t.M -= 12
-		t.Y++
-	}
-	for t.M < 1 {
-		t.M += 12
-		t.Y--
-	}
+	// Normalize months
+	do_range_limit(1, 13, 12, &t.M, &t.Y)
 
 	// Normalize days and months
 	for t.D > DaysInMonth(t.Y, t.M) {
@@ -710,10 +646,53 @@ func fetchTimezoneOffset(tz *TzInfo, ts int64) (*TTInfo, int64) {
 	return nil, 0
 }
 
+// doAdjustForWeekday adjusts the day based on relative weekday (e.g., "next Monday")
+func doAdjustForWeekday(t *Time) {
+	currentDow := DayOfWeek(t.Y, t.M, t.D)
+
+	if t.Relative.WeekdayBehavior == 2 {
+		// "this" behavior - stay in current week
+		// To make "this week" work, where the current DOW is a "sunday"
+		if currentDow == 0 && t.Relative.Weekday != 0 {
+			t.Relative.Weekday -= 7
+		}
+		// To make "sunday this week" work, where the current DOW is not a "sunday"
+		if t.Relative.Weekday == 0 && currentDow != 0 {
+			t.Relative.Weekday = 7
+		}
+		t.D -= currentDow
+		t.D += int64(t.Relative.Weekday)
+		return
+	}
+
+	// Calculate difference between target and current day of week
+	difference := int64(t.Relative.Weekday) - currentDow
+
+	// Adjust difference based on whether we're going forward or backward
+	if (t.Relative.D < 0 && difference < 0) ||
+	   (t.Relative.D >= 0 && difference <= -int64(t.Relative.WeekdayBehavior)) {
+		difference += 7
+	}
+
+	if t.Relative.Weekday >= 0 {
+		t.D += difference
+	} else {
+		// Negative weekday (shouldn't happen in our use case, but handle it)
+		absWeekday := int64(t.Relative.Weekday)
+		if absWeekday < 0 {
+			absWeekday = -absWeekday
+		}
+		t.D -= (7 - (absWeekday - currentDow))
+	}
+
+	// Clear the weekday relative flag after adjustment (C behavior)
+	t.Relative.HaveWeekdayRelative = false
+}
+
 // doAdjustRelative applies relative time adjustments
 func doAdjustRelative(t *Time) {
 	if t.Relative.HaveWeekdayRelative {
-		// TODO: implement weekday adjustments
+		doAdjustForWeekday(t)
 	}
 
 	timelib_do_normalize(t)
@@ -723,7 +702,11 @@ func doAdjustRelative(t *Time) {
 		t.S += t.Relative.S
 		t.I += t.Relative.I
 		t.H += t.Relative.H
-		t.D += t.Relative.D
+
+		// Only add D if it's not UNSET
+		if t.D != TIMELIB_UNSET {
+			t.D += t.Relative.D
+		}
 		t.M += t.Relative.M
 		t.Y += t.Relative.Y
 	}
@@ -748,6 +731,7 @@ func doAdjustSpecial(t *Time) {
 			// TODO: implement weekday special adjustments
 		}
 	}
+
 	timelib_do_normalize(t)
 	// Clear special relative
 	t.Relative.Special.Type = 0
@@ -835,7 +819,7 @@ func (t *Time) Unixtime2gmt(ts int64) {
 	t.H = hours
 	t.I = minutes
 	t.S = seconds
-	t.US = 0
+	// Note: Do NOT set US here - C version preserves existing microseconds
 	t.Z = 0
 	t.Dst = 0
 	t.Sse = ts
