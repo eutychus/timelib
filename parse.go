@@ -598,12 +598,13 @@ func (p *StringParser) parseTimezoneIdentifier(result *ParseResult) bool {
 	// Timezone names can contain: letters, underscores, hyphens
 	// Examples: America/New_York, America/Port-au-Prince, America/Indiana/Knox
 	// Match timezone at the end of the string or followed by whitespace
-	tzPattern := regexp.MustCompile(`\s+([A-Z][a-zA-Z_-]+(?:/[A-Z][a-zA-Z_-]+)*)(?:\s|$)`)
+	// IMPORTANT: Require at least one '/' to distinguish from abbreviations like "CET", "UTC"
+	tzPattern := regexp.MustCompile(`\s+([A-Z][a-zA-Z_-]+/[a-zA-Z_-]+(?:/[a-zA-Z_-]+)*)(?:\s|$)`)
 
 	matches := tzPattern.FindStringSubmatchIndex(p.input)
 	if matches == nil {
 		// Try matching just the timezone identifier by itself (no leading whitespace)
-		tzPattern = regexp.MustCompile(`^([A-Z][a-zA-Z_-]+(?:/[A-Z][a-zA-Z_-]+)*)$`)
+		tzPattern = regexp.MustCompile(`^([A-Z][a-zA-Z_-]+/[a-zA-Z_-]+(?:/[a-zA-Z_-]+)*)$`)
 		matches = tzPattern.FindStringSubmatchIndex(p.input)
 		if matches == nil {
 			return false
@@ -704,29 +705,49 @@ func (p *StringParser) parseGeneric(result *ParseResult) bool {
 		"2 January 2006",
 	}
 
+	// Try to find a match by attempting to parse progressively longer prefixes
+	// This mimics how the C parser works: parse date/time, then call ParseZone on remainder
 	for _, format := range formats {
-		if t, err := time.Parse(format, normalizedInput); err == nil {
-			// Check if the format includes date components
-			hasDateInFormat := strings.Contains(format, "2006") || strings.Contains(format, "Jan") || strings.Contains(format, "01/") || strings.Contains(format, "02/")
+		// Determine the minimum input length needed for this format
+		formatLen := len(format)
 
-			if hasDateInFormat {
-				result.Time.Y = int64(t.Year())
-				result.Time.M = int64(t.Month())
-				result.Time.D = int64(t.Day())
-				result.HasDate = true
-			} else {
-				// Time-only format - set date to 0
-				result.Time.Y = 0
-				result.Time.M = 0
-				result.Time.D = 0
-			}
-
-			result.Time.H = int64(t.Hour())
-			result.Time.I = int64(t.Minute())
-			result.Time.S = int64(t.Second())
-			result.Time.US = int64(t.Nanosecond() / 1000)
-			result.HasTime = true
+		// Try to parse the entire input first (exact match)
+		t, err := time.Parse(format, normalizedInput)
+		if err == nil {
+			// Exact match - no timezone info
+			p.applyParsedTime(&t, result, format)
 			return true
+		}
+
+		// Try to parse just the portion that matches the format
+		// by trying prefixes of increasing length
+		for tryLen := formatLen; tryLen <= len(normalizedInput); tryLen++ {
+			prefix := normalizedInput[:tryLen]
+			t, err := time.Parse(format, prefix)
+			if err == nil {
+				// Found a match! Apply the parsed values
+				p.applyParsedTime(&t, result, format)
+
+				// Check if there's remaining content that might be timezone info
+				if tryLen < len(normalizedInput) {
+					remaining := normalizedInput[tryLen:]
+					// Call ParseZone on the remaining content (like C does)
+					var dst int
+					tzNotFound := 0
+					offset := ParseZone(&remaining, &dst, result.Time, &tzNotFound, BuiltinDB(), ParseTzfile)
+					if tzNotFound == 0 {
+						// Successfully parsed timezone
+						result.Time.Z = int32(offset)
+						result.Time.Dst = dst
+						result.HasZone = true
+						result.Time.IsLocaltime = true
+						result.Time.HaveZone = true
+						// ZoneType will be set by ParseZone
+					}
+				}
+
+				return true
+			}
 		}
 	}
 
@@ -735,6 +756,30 @@ func (p *StringParser) parseGeneric(result *ParseResult) bool {
 }
 
 // Helper functions
+
+// applyParsedTime applies a parsed Go time.Time to the result
+func (p *StringParser) applyParsedTime(t *time.Time, result *ParseResult, format string) {
+	// Check if the format includes date components
+	hasDateInFormat := strings.Contains(format, "2006") || strings.Contains(format, "Jan") || strings.Contains(format, "01/") || strings.Contains(format, "02/")
+
+	if hasDateInFormat {
+		result.Time.Y = int64(t.Year())
+		result.Time.M = int64(t.Month())
+		result.Time.D = int64(t.Day())
+		result.HasDate = true
+	} else {
+		// Time-only format - set date to 0
+		result.Time.Y = 0
+		result.Time.M = 0
+		result.Time.D = 0
+	}
+
+	result.Time.H = int64(t.Hour())
+	result.Time.I = int64(t.Minute())
+	result.Time.S = int64(t.Second())
+	result.Time.US = int64(t.Nanosecond() / 1000)
+	result.HasTime = true
+}
 
 func (p *StringParser) addError(code int, message string) {
 	p.errors.ErrorCount++

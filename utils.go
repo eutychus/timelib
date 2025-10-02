@@ -481,8 +481,12 @@ func ParseZone(ptr *string, dst *int, t *Time, tzNotFound *int, tzdb *TzDB, tzWr
 	}
 
 	// Check for GMT+/- prefix
-	if i+3 < len(s) && s[i:i+3] == "GMT" && i+3 < len(s) && (s[i+3] == '+' || s[i+3] == '-') {
+	if i+3 <= len(s) && s[i:i+3] == "GMT" {
 		i += 3
+		// Skip optional whitespace after GMT
+		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+			i++
+		}
 	}
 
 	// Handle +/- offset
@@ -528,6 +532,7 @@ func ParseZone(ptr *string, dst *int, t *Time, tzNotFound *int, tzdb *TzDB, tzWr
 		}
 
 		// If not found or if it's UTC, try as timezone identifier
+		// This matches C code: if (!found || strcmp("UTC", tz_abbr) == 0)
 		if !found || abbr == "UTC" {
 			if tzdb != nil && tzWrapper != nil {
 				var dummyErrorCode int
