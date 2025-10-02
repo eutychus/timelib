@@ -1,7 +1,6 @@
 package timelib
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 )
@@ -336,29 +335,9 @@ func DumpTzinfo(tz *TzInfo) {
 }
 
 // ParsePosixStr parses a POSIX timezone string
+// This is a wrapper that calls ParsePosixString with nil TzInfo
 func ParsePosixStr(posix string) (*PosixStr, error) {
-	if posix == "" {
-		return nil, errors.New("empty POSIX string")
-	}
-
-	// This is a simplified POSIX string parser
-	// Full implementation would be more complex
-
-	ps := &PosixStr{}
-
-	// Basic parsing - this would need to be expanded for full POSIX support
-	parts := strings.Fields(posix)
-	if len(parts) < 1 {
-		return nil, errors.New("invalid POSIX string format")
-	}
-
-	// Parse standard time abbreviation and offset
-	ps.Std = parts[0]
-
-	// For now, return basic structure
-	// Full POSIX parsing would be implemented here
-
-	return ps, nil
+	return ParsePosixString(posix, nil)
 }
 
 // PosixStrDtor frees POSIX string resources
@@ -378,17 +357,139 @@ func PosixStrDtor(ps *PosixStr) {
 	}
 }
 
+// countLeapYears counts leap years from year 1 to given year
+// Matches C function: count_leap_years
+func countLeapYears(y int64) int64 {
+	// Because we want this for Jan 1, the leap day hasn't happened yet, so
+	// subtract one of year before we calculate
+	y--
+	return (y / 4) - (y / 100) + (y / 400)
+}
+
+// TsAtStartOfYear returns Unix timestamp at start of given year (Jan 1, 00:00:00)
+// Matches C function: timelib_ts_at_start_of_year
+func TsAtStartOfYear(year int64) int64 {
+	epochLeapYears := countLeapYears(1970)
+	currentLeapYears := countLeapYears(year)
+
+	return SECS_PER_DAY * (
+		((year - 1970) * DAYS_PER_YEAR) +
+		currentLeapYears -
+		epochLeapYears)
+}
+
+// calcTransition calculates the seconds from start of year for a POSIX transition
+// Matches C function: calc_transition
+func calcTransition(psi *PosixTransInfo, year int64) int64 {
+	if psi == nil {
+		return 0
+	}
+
+	leapYear := IsLeapYear(year)
+
+	switch psi.Type {
+	case 1: // TIMELIB_POSIX_TRANS_TYPE_JULIAN_NO_FEB29 - Jn format
+		value := int64(psi.Days - 1)
+		if leapYear && psi.Days >= 60 {
+			value++
+		}
+		return value * SECS_PER_DAY
+
+	case 2: // TIMELIB_POSIX_TRANS_TYPE_JULIAN_FEB29 - n format
+		return int64(psi.Days) * SECS_PER_DAY
+
+	case 3: // TIMELIB_POSIX_TRANS_TYPE_MWD - Mm.w.d format
+		// Use Zeller's Congruence to get day-of-week of first day of month
+		m1 := int64((psi.Mwd.Month + 9) % 12 + 1)
+		yy0 := year
+		if psi.Mwd.Month <= 2 {
+			yy0 = year - 1
+		}
+		yy1 := yy0 / 100
+		yy2 := yy0 % 100
+		dow := ((26*m1 - 2) / 10 + 1 + yy2 + yy2/4 + yy1/4 - 2*yy1) % 7
+		if dow < 0 {
+			dow += DAYS_PER_WEEK
+		}
+
+		// dow is the day-of-week of the first day of the month
+		// Get the day-of-month (zero-origin) of the first "dow" day of the month
+		d := int64(psi.Mwd.Dow) - dow
+		if d < 0 {
+			d += DAYS_PER_WEEK
+		}
+
+		// Add weeks to get to the nth occurrence
+		for i := 1; i < psi.Mwd.Week; i++ {
+			monthLen := int64(monthLengths[0][psi.Mwd.Month-1])
+			if leapYear {
+				monthLen = int64(monthLengths[1][psi.Mwd.Month-1])
+			}
+			if d+DAYS_PER_WEEK >= monthLen {
+				break
+			}
+			d += DAYS_PER_WEEK
+		}
+
+		// d is the day-of-month (zero-origin) of the day we want
+		value := int64(d) * SECS_PER_DAY
+		for i := 0; i < psi.Mwd.Month-1; i++ {
+			monthLen := monthLengths[0][i]
+			if leapYear {
+				monthLen = monthLengths[1][i]
+			}
+			value += int64(monthLen) * SECS_PER_DAY
+		}
+
+		return value
+	}
+
+	return 0
+}
+
+// monthLengths contains days in each month for normal and leap years
+var monthLengths = [2][12]int{
+	{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}, // normal year
+	{31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}, // leap year
+}
+
 // GetTransitionsForYear calculates DST transitions for a specific year
+// This matches the C implementation: timelib_get_transitions_for_year
 func GetTransitionsForYear(tz *TzInfo, year int64, transitions *PosixTransitions) {
-	if tz == nil || transitions == nil {
+	if tz == nil || transitions == nil || tz.PosixInfo == nil {
 		return
 	}
 
-	// This is a simplified implementation
-	// Full implementation would calculate actual DST transitions based on timezone rules
+	if tz.PosixInfo.DstBegin == nil || tz.PosixInfo.DstEnd == nil {
+		return
+	}
 
-	transitions.Count = 0
+	yearBeginTs := TsAtStartOfYear(year)
 
-	// For now, return empty transitions
-	// Full implementation would parse timezone rules and calculate transitions
+	// Calculate begin transition
+	transBegin := yearBeginTs
+	transBegin += calcTransition(tz.PosixInfo.DstBegin, year)
+	transBegin += int64(tz.PosixInfo.DstBegin.Hour)
+	transBegin -= tz.PosixInfo.StdOffset
+
+	// Calculate end transition
+	transEnd := yearBeginTs
+	transEnd += calcTransition(tz.PosixInfo.DstEnd, year)
+	transEnd += int64(tz.PosixInfo.DstEnd.Hour)
+	transEnd -= tz.PosixInfo.DstOffset
+
+	// Store transitions in order
+	if transBegin < transEnd {
+		transitions.Times[transitions.Count] = transBegin
+		transitions.Times[transitions.Count+1] = transEnd
+		transitions.Types[transitions.Count] = int64(tz.PosixInfo.TypeIndexDstType)
+		transitions.Types[transitions.Count+1] = int64(tz.PosixInfo.TypeIndexStdType)
+	} else {
+		transitions.Times[transitions.Count+1] = transBegin
+		transitions.Times[transitions.Count] = transEnd
+		transitions.Types[transitions.Count+1] = int64(tz.PosixInfo.TypeIndexDstType)
+		transitions.Types[transitions.Count] = int64(tz.PosixInfo.TypeIndexStdType)
+	}
+
+	transitions.Count += 2
 }

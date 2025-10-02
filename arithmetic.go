@@ -547,6 +547,47 @@ func getTimeZoneOffsetInfo(ts int64, tz *TzInfo, offset *int32, transitionTime *
 	return false
 }
 
+// fetchPosixTimezoneOffset calculates timezone offset using POSIX string
+// This handles dates beyond the transition table using rules like "EST5EDT,M3.2.0,M11.1.0"
+// fetchPosixTimezoneOffset matches C function: timelib_fetch_posix_timezone_offset
+func fetchPosixTimezoneOffset(tz *TzInfo, ts int64) (*TTInfo, int64) {
+	if tz.PosixInfo == nil {
+		return nil, 0
+	}
+
+	// If there is no second (dst_end) information, the UTC offset is valid for the whole year
+	if tz.PosixInfo.DstEnd == nil {
+		if len(tz.Trans) > 0 {
+			return &tz.Type[tz.PosixInfo.TypeIndexStdType], tz.Trans[tz.Bit64.Timecnt-1]
+		}
+		return &tz.Type[tz.PosixInfo.TypeIndexStdType], INT64_MIN
+	}
+
+	// Find 'year' (UTC) for 'ts'
+	var dummy Time
+	dummy.Unixtime2gmt(ts)
+	year := dummy.Y
+
+	// Calculate transition times for 'year-1', 'year', and 'year+1'
+	transitions := PosixTransitions{}
+	GetTransitionsForYear(tz, year-1, &transitions)
+	GetTransitionsForYear(tz, year, &transitions)
+	GetTransitionsForYear(tz, year+1, &transitions)
+
+	// Check where the 'ts' falls in the transitions
+	for i := 1; i < transitions.Count; i++ {
+		if ts < transitions.Times[i] {
+			typeIdx := transitions.Types[i-1]
+			if typeIdx >= 0 && int(typeIdx) < len(tz.Type) {
+				return &tz.Type[typeIdx], transitions.Times[i-1]
+			}
+			break
+		}
+	}
+
+	return nil, 0
+}
+
 // fetchTimezoneOffset finds the timezone offset for a given timestamp
 // This is a port of timelib_fetch_timezone_offset from parse_tz.c
 func fetchTimezoneOffset(tz *TzInfo, ts int64) (*TTInfo, int64) {
@@ -556,7 +597,6 @@ func fetchTimezoneOffset(tz *TzInfo, ts int64) (*TTInfo, int64) {
 
 	// If there are no transitions, use type 0 or POSIX info
 	if tz.Bit64.Timecnt == 0 || len(tz.Trans) == 0 {
-		// TODO: Handle POSIX info if available
 		if tz.Bit64.Typecnt == 1 && len(tz.Type) > 0 {
 			return &tz.Type[0], INT64_MIN
 		}
@@ -573,7 +613,12 @@ func fetchTimezoneOffset(tz *TzInfo, ts int64) (*TTInfo, int64) {
 
 	// After last transition, use POSIX info or last transition
 	if ts >= tz.Trans[tz.Bit64.Timecnt-1] {
-		// TODO: Handle POSIX info if available
+		// Use POSIX info if available
+		if tz.PosixInfo != nil {
+			return fetchPosixTimezoneOffset(tz, ts)
+		}
+
+		// Fall back to last transition
 		transIdx := tz.TransIdx[tz.Bit64.Timecnt-1]
 		if int(transIdx) < len(tz.Type) {
 			return &tz.Type[transIdx], tz.Trans[tz.Bit64.Timecnt-1]
@@ -658,7 +703,6 @@ func doAdjustSpecialEarly(t *Time) {
 // Unixtime2date converts Unix timestamp to date
 func Unixtime2date(ts int64, y, m, d *int64) {
 	// Use the algorithm from howardhinnant.github.io/date_algorithms.html
-	// This is a simplified version
 	z := ts / 86400
 	z += 719468
 	era := z / 146097
