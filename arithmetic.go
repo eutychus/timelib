@@ -547,9 +547,15 @@ func getTimeZoneOffsetInfo(ts int64, tz *TzInfo, offset *int32, transitionTime *
 	return false
 }
 
-// fetchPosixTimezoneOffset calculates timezone offset using POSIX string
-// This handles dates beyond the transition table using rules like "EST5EDT,M3.2.0,M11.1.0"
-// fetchPosixTimezoneOffset matches C function: timelib_fetch_posix_timezone_offset
+// fetchPosixTimezoneOffset calculates timezone offset using POSIX string.
+// This handles dates beyond the transition table using rules like "EST5EDT,M3.2.0,M11.1.0".
+//
+// POSIX rules allow timezone files to specify ongoing DST rules that extend
+// indefinitely into the future, even when the tzfile only contains historical
+// transitions. This function calculates transitions for year-1, year, and year+1
+// to correctly handle timestamps near year boundaries.
+//
+// Matches C function: timelib_fetch_posix_timezone_offset
 func fetchPosixTimezoneOffset(tz *TzInfo, ts int64) (*TTInfo, int64) {
 	if tz.PosixInfo == nil {
 		return nil, 0

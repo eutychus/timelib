@@ -1422,7 +1422,7 @@ func TestTransitionsEire03(t *testing.T) {
 // New York with modified full year DST
 func TestTransitionsNY01(t *testing.T) {
 	var error int
-	testDirectory, err2 := timelib.Zoneinfo("tests/c/files")
+	testDirectory, err2 := timelib.Zoneinfo("files")
 	if err2 != nil {
 		t.Fatalf("Zoneinfo error: %v", err2)
 	}
@@ -1447,7 +1447,7 @@ func TestTransitionsNY01(t *testing.T) {
 
 func TestTransitionsNY02(t *testing.T) {
 	var error int
-	testDirectory, err2 := timelib.Zoneinfo("tests/c/files")
+	testDirectory, err2 := timelib.Zoneinfo("files")
 	if err2 != nil {
 		t.Fatalf("Zoneinfo error: %v", err2)
 	}
@@ -1472,7 +1472,7 @@ func TestTransitionsNY02(t *testing.T) {
 
 func TestTransitionsNY03(t *testing.T) {
 	var error int
-	testDirectory, err2 := timelib.Zoneinfo("tests/c/files")
+	testDirectory, err2 := timelib.Zoneinfo("files")
 	if err2 != nil {
 		t.Fatalf("Zoneinfo error: %v", err2)
 	}
@@ -1497,7 +1497,7 @@ func TestTransitionsNY03(t *testing.T) {
 
 func TestTransitionsNY04(t *testing.T) {
 	var error int
-	testDirectory, err2 := timelib.Zoneinfo("tests/c/files")
+	testDirectory, err2 := timelib.Zoneinfo("files")
 	if err2 != nil {
 		t.Fatalf("Zoneinfo error: %v", err2)
 	}

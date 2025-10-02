@@ -347,7 +347,7 @@ func TestParseTzCorruptTransitions01(t *testing.T) {
 
 func TestParseTzCorruptTransitions02(t *testing.T) {
 	// Test with the NonContinuous test file
-	testDir := "../../tests/c/files"
+	testDir := "files"
 	testDB, err := timelib.Zoneinfo(testDir)
 	if err != nil {
 		t.Skipf("Test directory not found: %v", err)

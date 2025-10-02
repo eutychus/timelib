@@ -8,7 +8,7 @@ import (
 
 func TestWarnOnSlim001(t *testing.T) {
 	var errorCode int
-	testDirectory, err2 := timelib.Zoneinfo("tests/c/files")
+	testDirectory, err2 := timelib.Zoneinfo("files")
 	if err2 != nil {
 		t.Fatalf("Zoneinfo error: %v", err2)
 	}
@@ -27,7 +27,7 @@ func TestWarnOnSlim001(t *testing.T) {
 
 func TestDontWarnOnFat001(t *testing.T) {
 	var errorCode int
-	testDirectory, err2 := timelib.Zoneinfo("tests/c/files")
+	testDirectory, err2 := timelib.Zoneinfo("files")
 	if err2 != nil {
 		t.Fatalf("Zoneinfo error: %v", err2)
 	}
@@ -46,7 +46,7 @@ func TestDontWarnOnFat001(t *testing.T) {
 
 func TestTzif4Format(t *testing.T) {
 	var errorCode int
-	testDirectory, err2 := timelib.Zoneinfo("tests/c/files")
+	testDirectory, err2 := timelib.Zoneinfo("files")
 	if err2 != nil {
 		t.Fatalf("Zoneinfo error: %v", err2)
 	}

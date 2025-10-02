@@ -357,7 +357,16 @@ func PosixStrDtor(ps *PosixStr) {
 	}
 }
 
-// countLeapYears counts leap years from year 1 to given year
+// Timezone Transition Calculation Functions
+//
+// These functions calculate DST transitions for timezones using POSIX rules.
+// POSIX rules are used for timestamps beyond the last transition in the tzfile,
+// allowing timezone calculations to extend indefinitely into the future.
+
+// countLeapYears counts leap years from year 1 to given year.
+// Because this is for Jan 1 (before Feb 29), we subtract 1 from the year
+// before calculating to avoid counting the current year's potential leap day.
+//
 // Matches C function: count_leap_years
 func countLeapYears(y int64) int64 {
 	// Because we want this for Jan 1, the leap day hasn't happened yet, so
@@ -378,7 +387,12 @@ func TsAtStartOfYear(year int64) int64 {
 		epochLeapYears)
 }
 
-// calcTransition calculates the seconds from start of year for a POSIX transition
+// calcTransition calculates the seconds from start of year for a POSIX transition.
+// This implements all three POSIX transition rule formats:
+//  1. Type 1 (Jn): Julian day without leap days (1-365)
+//  2. Type 2 (n): Julian day with leap days (0-365)
+//  3. Type 3 (Mm.w.d): Month/week/day format using Zeller's Congruence
+//
 // Matches C function: calc_transition
 func calcTransition(psi *PosixTransInfo, year int64) int64 {
 	if psi == nil {
@@ -453,8 +467,15 @@ var monthLengths = [2][12]int{
 	{31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}, // leap year
 }
 
-// GetTransitionsForYear calculates DST transitions for a specific year
-// This matches the C implementation: timelib_get_transitions_for_year
+// GetTransitionsForYear calculates DST transitions for a specific year.
+// This function computes the exact Unix timestamps when DST begins and ends
+// for the given year, based on the POSIX transition rules. The transitions
+// are ordered correctly for both Northern and Southern hemispheres.
+//
+// The function is typically called with year-1, year, and year+1 to handle
+// timestamps near year boundaries.
+//
+// Matches C function: timelib_get_transitions_for_year
 func GetTransitionsForYear(tz *TzInfo, year int64, transitions *PosixTransitions) {
 	if tz == nil || transitions == nil || tz.PosixInfo == nil {
 		return

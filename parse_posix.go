@@ -1,3 +1,22 @@
+// Package timelib implements POSIX timezone string parsing and transition calculations.
+//
+// POSIX Timezone String Format:
+//
+//	std offset [dst [offset] [,start[/time],end[/time]]]
+//
+// Where:
+//   - std: Standard time abbreviation (e.g., "EST", "<+03>")
+//   - offset: Hours west of UTC (POSIX convention: positive = west)
+//   - dst: Daylight saving time abbreviation (optional)
+//   - start/end: DST transition rules in one of three formats:
+//     1. Jn: Julian day n (1-365), February 29 never counted
+//     2. n: Julian day n (0-365), February 29 counted in leap years
+//     3. Mm.w.d: Month m, week w (1-5, where 5=last), day of week d (0=Sunday)
+//
+// Examples:
+//   - EST5EDT,M3.2.0,M11.1.0: US Eastern time
+//   - CST6CDT,M3.2.0/2,M11.1.0/2: US Central time with 2am transitions
+//   - <+03>-3: UTC+3 with no DST
 package timelib
 
 import (
@@ -5,6 +24,38 @@ import (
 	"fmt"
 	"strconv"
 )
+
+// findTTInfoIndex finds a type index matching offset, isDst, and abbreviation.
+// This is critical for correctly mapping POSIX abbreviations (like "EDT") to the
+// corresponding TTInfo entries in the timezone file, ensuring proper timezone
+// display when using POSIX rules for dates beyond the transition table.
+//
+// Matches C function: find_ttinfo_index
+func findTTInfoIndex(tz *TzInfo, offset int32, isDst int, abbr string) int {
+	if tz == nil {
+		return -1
+	}
+
+	for i, t := range tz.Type {
+		if t.Offset == offset && t.IsDst == isDst {
+			// Extract abbreviation from timezone_abbr
+			if int(t.AbbrIdx) < len(tz.TimezoneAbbr) {
+				typeAbbr := ""
+				for j := int(t.AbbrIdx); j < len(tz.TimezoneAbbr); j++ {
+					if tz.TimezoneAbbr[j] == 0 {
+						typeAbbr = tz.TimezoneAbbr[int(t.AbbrIdx):j]
+						break
+					}
+				}
+				if typeAbbr == abbr {
+					return i
+				}
+			}
+		}
+	}
+
+	return -1
+}
 
 // ParsePosixString parses a POSIX timezone string
 // Format: std offset [dst [offset] [,start[/time],end[/time]]]
@@ -83,19 +134,38 @@ func ParsePosixString(posix string, tz *TzInfo) (*PosixStr, error) {
 		}
 	}
 
-	// Set type indices
+	// Set type indices by finding matching types based on offset, isDst, and abbreviation
+	// This matches the C function: find_ttinfo_index
 	if tz != nil && len(tz.Type) > 0 {
-		// Find standard and DST types
-		ps.TypeIndexStdType = 0
-		ps.TypeIndexDstType = 1
-
-		// Search for actual types that match
-		for i, t := range tz.Type {
-			if t.IsDst == 0 {
-				ps.TypeIndexStdType = i
-			} else if t.IsDst != 0 {
-				ps.TypeIndexDstType = i
+		// Find standard type index
+		ps.TypeIndexStdType = findTTInfoIndex(tz, int32(ps.StdOffset), 0, ps.Std)
+		if ps.TypeIndexStdType == -1 {
+			// If not found, use first non-DST type as fallback
+			for i, t := range tz.Type {
+				if t.IsDst == 0 {
+					ps.TypeIndexStdType = i
+					break
+				}
 			}
+			if ps.TypeIndexStdType == -1 {
+				ps.TypeIndexStdType = 0
+			}
+		}
+
+		// Find DST type index if DST is present
+		if ps.Dst != "" {
+			ps.TypeIndexDstType = findTTInfoIndex(tz, int32(ps.DstOffset), 1, ps.Dst)
+			if ps.TypeIndexDstType == -1 {
+				// If not found, use first DST type as fallback
+				for i, t := range tz.Type {
+					if t.IsDst != 0 {
+						ps.TypeIndexDstType = i
+						break
+					}
+				}
+			}
+		} else {
+			ps.TypeIndexDstType = -1
 		}
 	}
 
@@ -351,7 +421,15 @@ func parseNumber(s string, pos int) (int64, int, error) {
 }
 
 // CalculatePosixTransitionTime calculates the Unix timestamp for a POSIX transition
-// in a specific year
+// in a specific year. This function converts a POSIX transition rule (Jn, n, or Mm.w.d)
+// into an absolute Unix timestamp, adjusting for the timezone offset.
+//
+// Parameters:
+//   - year: The year to calculate the transition for
+//   - trans: The POSIX transition rule (start or end of DST)
+//   - offset: The timezone offset to subtract (either std_offset or dst_offset)
+//
+// Returns: Unix timestamp when the transition occurs
 func CalculatePosixTransitionTime(year int, trans *PosixTransInfo, offset int64) int64 {
 	if trans == nil {
 		return 0
