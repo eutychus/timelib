@@ -21,6 +21,6 @@ jobs:
     - name: Install dependencies
       run: go mod download
 
-    - name: Run tests
-      run: go test ./...
+    - name: Run tests with summary
+      run: ./run_tests_with_summary.sh
 
