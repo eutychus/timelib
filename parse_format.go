@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // FormatParser handles format-based parsing
@@ -874,23 +873,23 @@ func (p *FormatParser) parseEpochSeconds() bool {
 		return false
 	}
 
-	// Convert Unix timestamp to date/time
-	// Use Go's time package to convert the timestamp to UTC
-	t := time.Unix(timestamp, 0).UTC()
-
 	// Preserve existing microseconds if they were already set
+	// This is important when parsing formats like "u U" (microseconds then epoch)
 	existingUS := p.time.US
 
-	p.time.Y = int64(t.Year())
-	p.time.M = int64(t.Month())
-	p.time.D = int64(t.Day())
-	p.time.H = int64(t.Hour())
-	p.time.I = int64(t.Minute())
-	p.time.S = int64(t.Second())
+	// Match C behavior: set SSE and timezone info, then call update_from_sse
+	// C code at parse_date.c for TIMELIB_FORMAT_EPOCH_SECONDS
+	p.time.HaveZone = true
+	p.time.Sse = timestamp
+	p.time.IsLocaltime = true
+	p.time.ZoneType = TIMELIB_ZONETYPE_OFFSET
+	p.time.Z = 0
+	p.time.Dst = 0
+	p.time.UpdateFromSSE()
 
-	// Only set microseconds from timestamp if they weren't already set
-	if existingUS == 0 {
-		p.time.US = int64(t.Nanosecond() / 1000)
+	// Restore microseconds if they were set before parsing epoch
+	if existingUS != 0 {
+		p.time.US = existingUS
 	}
 
 	p.time.HaveDate = true

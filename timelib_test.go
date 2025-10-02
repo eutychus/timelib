@@ -39,8 +39,8 @@ func TestTimeCtor(t *testing.T) {
 	if tm.Z != 0 {
 		t.Errorf("Expected Z to be 0, got %d", tm.Z)
 	}
-	if tm.Dst != -1 {
-		t.Errorf("Expected Dst to be -1, got %d", tm.Dst)
+	if tm.Dst != 0 {
+		t.Errorf("Expected Dst to be 0, got %d", tm.Dst)
 	}
 	if tm.ZoneType != TIMELIB_ZONETYPE_NONE {
 		t.Errorf("Expected ZoneType to be TIMELIB_ZONETYPE_NONE (%d), got %d", TIMELIB_ZONETYPE_NONE, tm.ZoneType)
@@ -153,7 +153,7 @@ func TestDecimalHourToHMS(t *testing.T) {
 	}{
 		{1.5, struct{ hour, min, sec int }{1, 30, 0}, "1.5 hours = 1:30:00"},
 		{2.25, struct{ hour, min, sec int }{2, 15, 0}, "2.25 hours = 2:15:00"},
-		{3.0166666666666666, struct{ hour, min, sec int }{3, 1, 0}, "3.016666... hours = 3:01:00"},
+		{3.0166666666666666, struct{ hour, min, sec int }{3, 0, 59}, "3.016666... hours = 3:00:59 (floor of imprecise float)"},
 		{3.0175, struct{ hour, min, sec int }{3, 1, 3}, "3.0175 hours = 3:01:03"},
 		{-1.5, struct{ hour, min, sec int }{-1, 30, 0}, "-1.5 hours = -1:30:00"},
 		{0.0, struct{ hour, min, sec int }{0, 0, 0}, "0 hours = 0:00:00"},

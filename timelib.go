@@ -4,6 +4,7 @@ package timelib
 
 import (
 	"errors"
+	"math"
 	"time"
 )
 
@@ -344,7 +345,7 @@ func TimeCtor() *Time {
 		S:        TIMELIB_UNSET,
 		US:       0,
 		Z:        0,
-		Dst:      -1,
+		Dst:      0, // Changed from -1 to match C calloc behavior (zero-initialized)
 		ZoneType: TIMELIB_ZONETYPE_NONE,
 	}
 }
@@ -466,6 +467,7 @@ func TimeCompare(t1, t2 *Time) int {
 
 // DecimalHourToHMS converts a decimal hour into hour/min/sec components
 func DecimalHourToHMS(h float64) (hour, min, sec int) {
+	// Matches C function: timelib_decimal_hour_to_hms in timelib.c
 	swap := false
 
 	if h < 0 {
@@ -473,17 +475,11 @@ func DecimalHourToHMS(h float64) (hour, min, sec int) {
 		h = -h
 	}
 
-	hour = int(h)
-	remainingSeconds := (h - float64(hour)) * 3600.0
-	totalMinutes := remainingSeconds / 60.0
-	min = int(totalMinutes)
-	sec = int((totalMinutes-float64(min))*60.0 + 0.5) // Add 0.5 for proper rounding
+	hour = int(math.Floor(h))
+	seconds := int(math.Floor((h - float64(hour)) * 3600.0))
 
-	// Handle overflow from seconds to minutes
-	if sec >= 60 {
-		sec -= 60
-		min++
-	}
+	min = seconds / 60
+	sec = seconds % 60
 
 	if swap {
 		hour = -hour

@@ -57,6 +57,49 @@ func findTTInfoIndex(tz *TzInfo, offset int32, isDst int, abbr string) int {
 	return -1
 }
 
+// addAbbr adds an abbreviation to the timezone abbreviation string
+// Returns the index where the abbreviation was added
+// Matches C function: add_abbr
+func addAbbr(tz *TzInfo, abbr string) int {
+	if tz == nil {
+		return 0
+	}
+
+	oldLength := len(tz.TimezoneAbbr)
+	// Append abbreviation + null terminator
+	tz.TimezoneAbbr += abbr + "\x00"
+	tz.Bit64.Charcnt = uint64(len(tz.TimezoneAbbr))
+
+	return oldLength
+}
+
+// addNewTTInfoIndex adds a new TTInfo type to the timezone
+// Returns the index of the newly added type
+// Matches C function: add_new_ttinfo_index
+func addNewTTInfoIndex(tz *TzInfo, offset int32, isDst int, abbr string) int {
+	if tz == nil {
+		return -1
+	}
+
+	// Add abbreviation and get its index
+	abbrIdx := addAbbr(tz, abbr)
+
+	// Create new type
+	newType := TTInfo{
+		Offset:  offset,
+		IsDst:   isDst,
+		AbbrIdx: abbrIdx,
+		IsStd:   0,
+		IsUtc:   0,
+	}
+
+	// Append to type array
+	tz.Type = append(tz.Type, newType)
+	tz.Bit64.Typecnt++
+
+	return int(tz.Bit64.Typecnt - 1)
+}
+
 // ParsePosixString parses a POSIX timezone string
 // Format: std offset [dst [offset] [,start[/time],end[/time]]]
 // Examples:
@@ -72,7 +115,7 @@ func ParsePosixString(posix string, tz *TzInfo) (*PosixStr, error) {
 	pos := 0
 
 	// Parse standard timezone name
-	name, offset, newPos, err := parsePosixName(posix, pos)
+	name, offset, _, newPos, err := parsePosixName(posix, pos)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse standard name: %v", err)
 	}
@@ -111,15 +154,18 @@ func ParsePosixString(posix string, tz *TzInfo) (*PosixStr, error) {
 		ps.Dst = ps.Std + "D"
 		ps.DstOffset = ps.StdOffset + 3600 // Default: 1 hour ahead
 	} else {
-		name, offset, newPos, err = parsePosixName(posix, pos)
+		var hasOffset bool
+		name, offset, hasOffset, newPos, err = parsePosixName(posix, pos)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse DST name: %v", err)
 		}
 		ps.Dst = name
-		if offset != 0 {
+		if hasOffset {
+			// Offset was explicitly specified (even if it's 0)
 			ps.DstOffset = offset
 		} else {
-			ps.DstOffset = ps.StdOffset + 3600 // Default: 1 hour ahead
+			// No offset specified, use default: 1 hour ahead of standard
+			ps.DstOffset = ps.StdOffset + 3600
 		}
 		pos = newPos
 	}
@@ -150,34 +196,21 @@ func ParsePosixString(posix string, tz *TzInfo) (*PosixStr, error) {
 	}
 
 	// Set type indices by finding matching types based on offset, isDst, and abbreviation
-	// This matches the C function: find_ttinfo_index
-	if tz != nil && len(tz.Type) > 0 {
+	// This matches the C function: find_ttinfo_index and add_new_ttinfo_index
+	if tz != nil {
 		// Find standard type index
 		ps.TypeIndexStdType = findTTInfoIndex(tz, int32(ps.StdOffset), 0, ps.Std)
 		if ps.TypeIndexStdType == -1 {
-			// If not found, use first non-DST type as fallback
-			for i, t := range tz.Type {
-				if t.IsDst == 0 {
-					ps.TypeIndexStdType = i
-					break
-				}
-			}
-			if ps.TypeIndexStdType == -1 {
-				ps.TypeIndexStdType = 0
-			}
+			// If not found, add new type (matches C add_new_ttinfo_index)
+			ps.TypeIndexStdType = addNewTTInfoIndex(tz, int32(ps.StdOffset), 0, ps.Std)
 		}
 
 		// Find DST type index if DST is present
 		if ps.Dst != "" {
 			ps.TypeIndexDstType = findTTInfoIndex(tz, int32(ps.DstOffset), 1, ps.Dst)
 			if ps.TypeIndexDstType == -1 {
-				// If not found, use first DST type as fallback
-				for i, t := range tz.Type {
-					if t.IsDst != 0 {
-						ps.TypeIndexDstType = i
-						break
-					}
-				}
+				// If not found, add new type (matches C add_new_ttinfo_index)
+				ps.TypeIndexDstType = addNewTTInfoIndex(tz, int32(ps.DstOffset), 1, ps.Dst)
 			}
 		} else {
 			ps.TypeIndexDstType = -1
@@ -189,13 +222,14 @@ func ParsePosixString(posix string, tz *TzInfo) (*PosixStr, error) {
 
 // parsePosixName parses a timezone name and optional offset
 // Returns name, offset (in seconds, POSIX convention), new position
-func parsePosixName(s string, pos int) (string, int64, int, error) {
+func parsePosixName(s string, pos int) (string, int64, bool, int, error) {
 	if pos >= len(s) {
-		return "", 0, pos, errors.New("unexpected end of string")
+		return "", 0, false, pos, errors.New("unexpected end of string")
 	}
 
 	var name string
 	var offset int64
+	hasOffset := false
 
 	// Check if name is quoted with < >
 	if s[pos] == '<' {
@@ -205,7 +239,7 @@ func parsePosixName(s string, pos int) (string, int64, int, error) {
 			end++
 		}
 		if end >= len(s) {
-			return "", 0, pos, errors.New("unclosed < in timezone name")
+			return "", 0, false, pos, errors.New("unclosed < in timezone name")
 		}
 		name = s[pos:end]
 		pos = end + 1
@@ -216,7 +250,7 @@ func parsePosixName(s string, pos int) (string, int64, int, error) {
 			end++
 		}
 		if end == pos {
-			return "", 0, pos, errors.New("expected timezone name")
+			return "", 0, false, pos, errors.New("expected timezone name")
 		}
 		name = s[pos:end]
 		pos = end
@@ -227,11 +261,12 @@ func parsePosixName(s string, pos int) (string, int64, int, error) {
 		var err error
 		offset, pos, err = parsePosixOffset(s, pos)
 		if err != nil {
-			return name, 0, pos, err
+			return name, 0, false, pos, err
 		}
+		hasOffset = true
 	}
 
-	return name, offset, pos, nil
+	return name, offset, hasOffset, pos, nil
 }
 
 // parsePosixOffset parses a timezone offset

@@ -674,25 +674,25 @@ func lookupTimezoneAbbr(abbr string) (offset int64, dst int, found bool) {
 	case "EST":
 		return -5 * 3600, 0, true
 	case "EDT":
-		return -4 * 3600, 1, true
+		return -4 * 3600, 0, true  // EDT is UTC-4 (total offset, dst flag not added)
 	case "CST":
 		return -6 * 3600, 0, true
 	case "CDT":
-		return -5 * 3600, 1, true
+		return -5 * 3600, 0, true  // CDT is UTC-5 (total offset, dst flag not added)
 	case "MST":
 		return -7 * 3600, 0, true
 	case "MDT":
-		return -6 * 3600, 1, true
+		return -6 * 3600, 0, true  // MDT is UTC-6 (total offset, dst flag not added)
 	case "PST":
 		return -8 * 3600, 0, true
 	case "PDT":
-		return -7 * 3600, 1, true
+		return -7 * 3600, 0, true  // PDT is UTC-7 (total offset, dst flag not added)
 	case "CET":
 		return 1 * 3600, 0, true
 	case "CEST":
-		return 2 * 3600, 1, true
+		return 2 * 3600, 0, true   // CEST is UTC+2 (total offset, dst flag not added)
 	case "BST":
-		return 1 * 3600, 1, true
+		return 1 * 3600, 0, true   // BST is UTC+1 (total offset, dst flag not added)
 	default:
 		// Try to parse as timezone identifier (will be handled by caller)
 		return 0, 0, false

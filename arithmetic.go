@@ -206,15 +206,12 @@ func (t *Time) Diff(other *Time) *RelTime {
 		}
 
 		// Handle day overflow - only if we have negative days
+		// For inverted (later - earlier with invert flag), use the EARLIER time's month
+		// This matches C's do_range_limit_days_relative with invert=1
 		if temp.D < 0 {
-			// Get days in previous month of the "from" time (t)
-			prevMonth := t.M - 1
-			prevYear := t.Y
-			if prevMonth < 1 {
-				prevMonth += 12
-				prevYear--
-			}
-			temp.D += DaysInMonth(prevYear, prevMonth)
+			// Get days in current month of the "from" (earlier) time (other)
+			// C code uses the current month (not previous) when invert=1
+			temp.D += DaysInMonth(other.Y, other.M)
 			temp.M-- // Decrease month since we borrowed days
 
 			// Handle month underflow after borrowing
@@ -267,8 +264,11 @@ func (t *Time) Diff(other *Time) *RelTime {
 	}
 
 	// Handle day overflow - only if we have negative days
+	// For normal (later - earlier), use the PREVIOUS month from the later time
+	// This matches C's do_range_limit_days_relative with invert=0
 	if diff.D < 0 {
-		// Get days in previous month of the "to" time (other)
+		// Get days in previous month of the "to" (later) time (other)
+		// C code decrements the month first when invert=0
 		prevMonth := other.M - 1
 		prevYear := other.Y
 		if prevMonth < 1 {
@@ -296,16 +296,51 @@ func (t *Time) Diff(other *Time) *RelTime {
 // into account 23 and 25 hour (and variants) days when the zone_type
 // is TIMELIB_ZONETYPE_ID and have the same TZID for 'one' and 'two'.
 func timelib_diff_days(one, two *Time) int {
-	// Convert both times to epoch days
-	days1 := timelib_epoch_days_from_time(one)
-	days2 := timelib_epoch_days_from_time(two)
+	// Matches C function: timelib_diff_days in interval.c
+	days := 0
 
-	diff := int(days2 - days1)
-	if diff < 0 {
-		diff = -diff
+	if SameTimezone(one, two) {
+		var earliest, latest *Time
+		var earliestTime, latestTime float64
+
+		if TimeCompare(one, two) < 0 {
+			earliest = one
+			latest = two
+		} else {
+			earliest = two
+			latest = one
+		}
+
+		// Convert time of day to decimal hours for comparison
+		earliestTime = float64(earliest.H) + float64(earliest.I)/60.0 +
+			float64(earliest.S)/3600.0 + float64(earliest.US)/3600000000.0
+		latestTime = float64(latest.H) + float64(latest.I)/60.0 +
+			float64(latest.S)/3600.0 + float64(latest.US)/3600000000.0
+
+		// Calculate absolute difference in epoch days
+		days1 := timelib_epoch_days_from_time(one)
+		days2 := timelib_epoch_days_from_time(two)
+		days = int(days2 - days1)
+		if days < 0 {
+			days = -days
+		}
+
+		// If latest time-of-day is earlier than earliest time-of-day,
+		// we haven't completed a full day, so subtract 1
+		if latestTime < earliestTime && days > 0 {
+			days--
+		}
+	} else {
+		// Different timezones: use timestamp difference
+		// FIXME: This truncates to avoid overflow
+		ddays := (one.Sse - two.Sse) / 86400.0
+		if ddays < 0 {
+			ddays = -ddays
+		}
+		days = int(ddays)
 	}
 
-	return diff
+	return days
 }
 
 // timelib_do_normalize normalizes the time values (handles overflow/underflow)
@@ -823,6 +858,10 @@ func (t *Time) Unixtime2local(ts int64) {
 		t.Z = z
 		t.Dst = dst
 		t.ZoneType = zoneType
+		// Mark as localtime with zone info set (C code at unixtime2tm.c:159-160)
+		t.IsLocaltime = true
+		t.HaveZone = true
+		return
 
 	case TIMELIB_ZONETYPE_ID:
 		if t.TzInfo != nil {
@@ -838,6 +877,10 @@ func (t *Time) Unixtime2local(ts int64) {
 				t.TzInfo = t.TzInfo
 				t.TzAbbr = gmtOffset.Abbr
 				t.ZoneType = TIMELIB_ZONETYPE_ID
+				// Mark as localtime with zone info set (C code at unixtime2tm.c:159-160)
+				t.IsLocaltime = true
+				t.HaveZone = true
+				return
 			} else {
 				t.Unixtime2gmt(ts)
 				t.Sse = ts
@@ -852,7 +895,9 @@ func (t *Time) Unixtime2local(ts int64) {
 	default:
 		t.Unixtime2gmt(ts)
 		t.Sse = ts
-		// For default case, leave ZoneType as NONE set by Unixtime2gmt
+		// For default case, set have_zone to false (C code at unixtime2tm.c:154-156)
+		t.IsLocaltime = false
+		t.HaveZone = false
 	}
 }
 
