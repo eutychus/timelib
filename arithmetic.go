@@ -817,10 +817,12 @@ func (t *Time) Unixtime2local(ts int64) {
 		// For fixed offsets, just add the offset
 		z := t.Z
 		dst := t.Dst
+		zoneType := t.ZoneType
 		t.Unixtime2gmt(ts + int64(t.Z) + int64(t.Dst*3600))
 		t.Sse = ts
 		t.Z = z
 		t.Dst = dst
+		t.ZoneType = zoneType
 
 	case TIMELIB_ZONETYPE_ID:
 		if t.TzInfo != nil {
@@ -835,18 +837,22 @@ func (t *Time) Unixtime2local(ts int64) {
 				t.Z = gmtOffset.Offset
 				t.TzInfo = t.TzInfo
 				t.TzAbbr = gmtOffset.Abbr
+				t.ZoneType = TIMELIB_ZONETYPE_ID
 			} else {
 				t.Unixtime2gmt(ts)
 				t.Sse = ts
+				t.ZoneType = TIMELIB_ZONETYPE_ID
 			}
 		} else {
 			t.Unixtime2gmt(ts)
 			t.Sse = ts
+			// ZoneType remains TIMELIB_ZONETYPE_ID as set before
 		}
 
 	default:
 		t.Unixtime2gmt(ts)
 		t.Sse = ts
+		// For default case, leave ZoneType as NONE set by Unixtime2gmt
 	}
 }
 

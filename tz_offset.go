@@ -181,7 +181,8 @@ func GetCurrentOffsetForTime(t *Time) (int32, error) {
 		return t.Z, nil
 
 	case TIMELIB_ZONETYPE_ABBR:
-		return t.Z, nil
+		// For abbreviations, include DST adjustment
+		return t.Z + int32(t.Dst*3600), nil
 
 	case TIMELIB_ZONETYPE_ID:
 		if t.TzInfo != nil {
