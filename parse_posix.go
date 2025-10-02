@@ -294,7 +294,7 @@ func parsePosixTransitionRule(s string, pos int) (*PosixTransInfo, int, error) {
 	}
 
 	info := &PosixTransInfo{
-		Hour: 2, // Default transition time is 2:00 AM
+		Hour: 7200, // Default transition time is 2:00 AM (2 hours * 3600 seconds)
 	}
 
 	if s[pos] == 'J' {
