@@ -31,6 +31,13 @@ func testAddWall(t *testing.T, base, tzid, interval string, us int64, invert boo
 	timelib.SetTimezone(tBase, tzi)
 	tBase.UpdateFromSSE()
 
+	// Initialize microseconds to 0 if UNSET (C code behavior)
+	// The C code doesn't explicitly clear US in unixtime2gmt, so if it was
+	// uninitialized (which in C might be 0 or garbage), we need a consistent value
+	if tBase.US == timelib.TIMELIB_UNSET {
+		tBase.US = 0
+	}
+
 	// Parse microseconds from base string if present (e.g., "2000-01-01 00:00:01.500000")
 	// Strtotime may not parse fractional seconds properly
 	// This must be done AFTER UpdateFromSSE to avoid being cleared
@@ -92,6 +99,11 @@ func testSubWall(t *testing.T, base, tzid, interval string, us int64, invert boo
 	tBase.UpdateTS(tzi)
 	timelib.SetTimezone(tBase, tzi)
 	tBase.UpdateFromSSE()
+
+	// Initialize microseconds to 0 if UNSET (C code behavior)
+	if tBase.US == timelib.TIMELIB_UNSET {
+		tBase.US = 0
+	}
 
 	// Parse microseconds from base string if present
 	// This must be done AFTER UpdateFromSSE to avoid being cleared

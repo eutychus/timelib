@@ -722,7 +722,8 @@ func TestParseDateCombined(t *testing.T) {
 		// RFC 2822 style
 		{"Sat, 24 Apr 2004 21:48:40 +0200", "Sat, 24 Apr 2004 21:48:40 +0200", 2004, 4, 24, 21, 48, 40, 0, 7200},
 		// ISO 8601 with T separator (compact date) - no microseconds or timezone
-		{"19980717T14:08:55", "19980717T14:08:55", 1998, 7, 17, 14, 8, 55, timelib.TIMELIB_UNSET, timelib.TIMELIB_UNSET},
+		// When time is set, US is initialized to 0 (see parse_date.re:2625)
+		{"19980717T14:08:55", "19980717T14:08:55", 1998, 7, 17, 14, 8, 55, 0, timelib.TIMELIB_UNSET},
 		// ISO 8601 with microseconds but no timezone
 		{"2001-11-29T13:20:01.123", "2001-11-29T13:20:01.123", 2001, 11, 29, 13, 20, 1, 123000, timelib.TIMELIB_UNSET},
 		{"2001-11-29T13:20:01.123-05:00", "2001-11-29T13:20:01.123-05:00", 2001, 11, 29, 13, 20, 1, 123000, -18000},

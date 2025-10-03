@@ -237,12 +237,16 @@ func issue23TestAddWall(t *testing.T, str, interval string, tzi *timelib.TzInfo)
 		t.Fatalf("Failed to parse time '%s': %v", str, err)
 	}
 
-	// For Unix timestamps (@...), SSE is already set correctly, don't call UpdateTS
-	if str[0] != '@' {
-		time.UpdateTS(tzi)
-	}
+	// Always call UpdateTS - even for Unix timestamps (@...)
+	// The @ timestamp sets HaveRelative and Relative.S, which UpdateTS applies
+	time.UpdateTS(tzi)
 	timelib.SetTimezone(time, tzi)
 	time.UpdateFromSSE()
+
+	// Initialize microseconds to 0 if UNSET (C code behavior)
+	if time.US == timelib.TIMELIB_UNSET {
+		time.US = 0
+	}
 
 	errorsContainer := &timelib.ErrorContainer{}
 	_, _, p, _, err := timelib.Strtointerval(interval, errorsContainer)
