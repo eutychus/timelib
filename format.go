@@ -365,6 +365,12 @@ func parseWithBasicFormat(format, input string, result *Time, errors *ErrorConta
 	return nil
 }
 
+// ParseOptions holds parsing configuration options
+type ParseOptions struct {
+	AllowExtraChars bool
+	StrictMode      bool
+}
+
 // ParseFromFormatWithOptions parses with specific options
 func ParseFromFormatWithOptions(format, input string, options ParseOptions) (*Time, *ErrorContainer) {
 	formatConfig := &FormatConfig{

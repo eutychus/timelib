@@ -14,24 +14,18 @@ const SECS_PER_HOUR = 3600
 func testAddWithOffset(t *testing.T, offset int32, from string, period string, expectedY, expectedM, expectedD, expectedH, expectedI, expectedS int64) {
 	t.Helper()
 
-	// Parse "now" to get reference time
-	tNow, errorsNow := timelib.Strtotime("now")
-	if errorsNow != nil && errorsNow.ErrorCount > 0 {
-		t.Fatalf("Failed to parse 'now': %v", errorsNow.ErrorMessages)
-	}
-
 	// Parse the from time
-	tFrom, errorsFrom := timelib.Strtotime(from)
-	if errorsFrom != nil && errorsFrom.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time '%s': %v", from, errorsFrom.ErrorMessages)
+	tFrom, err := timelib.StrToTime(from, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time '%s': %v", from, err)
 	}
 
-	// Fill holes
-	timelib.FillHoles(tFrom, tNow, timelib.TIMELIB_NO_CLONE)
+	// No need to FillHoles - the date strings in tests are complete
 
 	// Set the offset
 	tFrom.ZoneType = timelib.TIMELIB_ZONETYPE_OFFSET
 	tFrom.Z = offset
+	tFrom.Dst = 0  // Initialize Dst when setting timezone offset
 
 	// Update timestamp
 	tFrom.UpdateTS(nil)
@@ -49,9 +43,9 @@ func testAddWithOffset(t *testing.T, offset int32, from string, period string, e
 
 	// Parse interval
 	errorsContainer := &timelib.ErrorContainer{}
-	_, _, iPeriod, _, err := timelib.Strtointerval(periodStr, errorsContainer)
-	if err != nil {
-		t.Fatalf("Failed to parse interval '%s': %v", periodStr, err)
+	_, _, iPeriod, _, intervalErr := timelib.Strtointerval(periodStr, errorsContainer)
+	if intervalErr != nil {
+		t.Fatalf("Failed to parse interval '%s': %v", periodStr, intervalErr)
 	}
 
 	if invert {
@@ -93,20 +87,13 @@ func testAddWithTimezone(t *testing.T, tzid string, from string, period string, 
 		t.Fatalf("Failed to parse timezone '%s': %v", tzid, err)
 	}
 
-	// Parse "now" to get reference time
-	tNow, errorsNow := timelib.Strtotime("now")
-	if errorsNow != nil && errorsNow.ErrorCount > 0 {
-		t.Fatalf("Failed to parse 'now': %v", errorsNow.ErrorMessages)
-	}
-
 	// Parse the from time
-	tFrom, errorsFrom := timelib.Strtotime(from)
-	if errorsFrom != nil && errorsFrom.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time '%s': %v", from, errorsFrom.ErrorMessages)
+	tFrom, err := timelib.StrToTime(from, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time '%s': %v", from, err)
 	}
 
-	// Fill holes
-	timelib.FillHoles(tFrom, tNow, timelib.TIMELIB_NO_CLONE)
+	// No need to FillHoles - the date strings in tests are complete
 
 	// Update timestamp with timezone
 	tFrom.UpdateTS(tzi)
@@ -330,9 +317,9 @@ func TestTimeFallType3PrevType2Post(t *testing.T) {
 // Add a simple test to verify basic functionality
 func TestAddBasic(t *testing.T) {
 	// Parse a time
-	tFrom, errorsFrom := timelib.Strtotime("2010-01-01 12:00:00")
-	if errorsFrom != nil && errorsFrom.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time: %v", errorsFrom.ErrorMessages)
+	tFrom, err := timelib.StrToTime("2010-01-01 12:00:00", nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time: %v", err)
 	}
 
 	// Update timestamp to make sure SSE is valid
@@ -364,7 +351,7 @@ func TestAddBasic(t *testing.T) {
 func TestAddDebug(t *testing.T) {
 	t.Skip("Debug test - shows current state")
 
-	tFrom, _ := timelib.Strtotime("2010-11-06 18:38:28")
+	tFrom, _ := timelib.StrToTime("2010-11-06 18:38:28", nil)
 	errorsContainer := &timelib.ErrorContainer{}
 	_, _, interval, _, _ := timelib.Strtointerval("P0Y0M0DT5H31M52S", errorsContainer)
 

@@ -21,20 +21,19 @@ func TestParseString(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.input, func(t *testing.T) {
-			// Use ParseStrtotime which is the Go equivalent of timelib_strtotime
-			options := timelib.ParseOptions{}
-			result, errors := timelib.ParseStrtotime(tc.input, options)
+			// Use StrToTime which is the Go equivalent of timelib_strtotime
+			result, err := timelib.StrToTime(tc.input, nil)
 
 			// For now, just verify the function can be called without panicking
 			// The actual parsing may have issues, so we just check basic functionality
 			if result != nil {
 				t.Logf("Successfully parsed '%s': %+v", tc.input, result)
 			} else {
-				t.Logf("ParseStrtotime returned nil for '%s' (may be expected)", tc.input)
+				t.Logf("StrToTime returned nil for '%s' (may be expected)", tc.input)
 			}
 
-			if errors != nil && errors.ErrorCount > 0 {
-				t.Logf("ParseStrtotime returned errors for '%s': %v", tc.input, errors)
+			if err != nil {
+				t.Logf("StrToTime returned error for '%s': %v", tc.input, err)
 			}
 		})
 	}
@@ -43,18 +42,17 @@ func TestParseString(t *testing.T) {
 func TestParseStringBasic(t *testing.T) {
 	// Test basic parsing functionality
 	input := "2008-03-26"
-	options := timelib.ParseOptions{}
 
-	result, errors := timelib.ParseStrtotime(input, options)
+	result, err := timelib.StrToTime(input, nil)
 
 	// For now, just verify the function can be called without panicking
-	if errors != nil && errors.ErrorCount > 0 {
-		t.Logf("ParseStrtotime returned errors (may be expected for some inputs): %v", errors)
+	if err != nil {
+		t.Logf("StrToTime returned error (may be expected for some inputs): %v", err)
 	}
 
 	// The function may not be fully implemented, so we just check it doesn't crash
 	if result != nil {
-		t.Logf("ParseStrtotime returned result: %+v", result)
+		t.Logf("StrToTime returned result: %+v", result)
 	}
 
 	t.Log("ParseStringBasic test completed successfully")

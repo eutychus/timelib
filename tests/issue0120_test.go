@@ -9,7 +9,7 @@ import (
 
 func testSetTimestamp(ts int64, tzid string) (*timelib.Time, *timelib.TzInfo) {
 	var dummyError int
-	t, _ := timelib.Strtotime("now")
+	t, _ := timelib.StrToTime("now", nil)
 	tzi, _ := timelib.ParseTzfile(tzid, timelib.BuiltinDB(), &dummyError)
 	t.TzInfo = tzi
 	t.ZoneType = timelib.TIMELIB_ZONETYPE_ID

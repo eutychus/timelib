@@ -755,6 +755,7 @@ func Unixtime2date(ts int64, y, m, d *int64) {
 	// HINNANT_EPOCH_SHIFT = 719468 (days from 0000-03-01 to 1970-01-01)
 	days := ts / SECS_PER_DAY
 	days += 719468
+	//fmt.Printf("DEBUG Unixtime2date: ts=%d, days=%d\n", ts, days)
 
 	// Adjustment for negative time portion
 	// If the time-of-day portion is negative, we need to go back one day
@@ -793,6 +794,7 @@ func Unixtime2date(ts int64, y, m, d *int64) {
 	*y = year
 	*m = month
 	*d = day
+	//fmt.Printf("DEBUG Unixtime2date result: y=%d m=%d d=%d\n", year, month, day)
 }
 
 // Unixtime2gmt converts Unix timestamp to GMT
@@ -824,6 +826,7 @@ func (t *Time) Unixtime2gmt(ts int64) {
 	t.Dst = 0
 	t.Sse = ts
 	t.SseUptodate = true
+	t.TimUptodate = true
 	t.IsLocaltime = false
 	t.ZoneType = TIMELIB_ZONETYPE_NONE
 }
@@ -896,7 +899,10 @@ func (t *Time) UpdateFromSSE() {
 	switch t.ZoneType {
 	case TIMELIB_ZONETYPE_ABBR, TIMELIB_ZONETYPE_OFFSET:
 		// For abbreviations and fixed offsets, just add the offset
-		t.Unixtime2gmt(t.Sse + int64(t.Z) + int64(t.Dst*3600))
+		//fmt.Printf("DEBUG UpdateFromSSE: t.Dst=%d, t.Z=%d, t.Sse=%d\n", t.Dst, t.Z, t.Sse)
+		param := t.Sse + int64(t.Z) + int64(t.Dst*3600)
+		//fmt.Printf("DEBUG UpdateFromSSE: Calling Unixtime2gmt(%d) = %d + %d + %d\n", param, t.Sse, t.Z, t.Dst*3600)
+		t.Unixtime2gmt(param)
 
 	case TIMELIB_ZONETYPE_ID:
 		// For timezone IDs, get the actual offset at this timestamp

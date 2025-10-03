@@ -25,15 +25,15 @@ func TestCreateTimestamp(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			// Parse the time string
-			time, errors := timelib.ParseStrtotime(tc.timeString, timelib.ParseOptions{})
-			if errors != nil && errors.ErrorCount > 0 {
-				t.Logf("Error parsing time string '%s': %v", tc.timeString, errors)
+			time, err := timelib.StrToTime(tc.timeString, nil)
+			if err != nil {
+				t.Logf("Error parsing time string '%s': %v", tc.timeString, err)
 			}
 
 			// Parse the reference time
-			reference, refErrors := timelib.ParseStrtotime(tc.reference, timelib.ParseOptions{})
-			if refErrors != nil && refErrors.ErrorCount > 0 {
-				t.Logf("Error parsing reference '%s': %v", tc.reference, refErrors)
+			reference, err := timelib.StrToTime(tc.reference, nil)
+			if err != nil {
+				t.Logf("Error parsing reference '%s': %v", tc.reference, err)
 			}
 
 			// Parse timezone info
@@ -65,15 +65,15 @@ func TestCreateTimestampBasic(t *testing.T) {
 	reference := "2021-01-01"
 
 	// Parse the time string
-	time, errors := timelib.ParseStrtotime(timeString, timelib.ParseOptions{})
-	if errors != nil && errors.ErrorCount > 0 {
-		t.Logf("Error parsing time string '%s': %v", timeString, errors)
+	time, err := timelib.StrToTime(timeString, nil)
+	if err != nil {
+		t.Logf("Error parsing time string '%s': %v", timeString, err)
 	}
 
 	// Parse the reference time
-	referenceTime, refErrors := timelib.ParseStrtotime(reference, timelib.ParseOptions{})
-	if refErrors != nil && refErrors.ErrorCount > 0 {
-		t.Logf("Error parsing reference '%s': %v", reference, refErrors)
+	referenceTime, err := timelib.StrToTime(reference, nil)
+	if err != nil {
+		t.Logf("Error parsing reference '%s': %v", reference, err)
 	}
 
 	// For now, just verify the functions can be called without panicking
@@ -81,13 +81,6 @@ func TestCreateTimestampBasic(t *testing.T) {
 	t.Logf("Reference: %s", reference)
 	t.Logf("Parsed time: %+v", time)
 	t.Logf("Parsed reference: %+v", referenceTime)
-
-	if errors != nil && errors.ErrorCount > 0 {
-		t.Logf("Parsing errors: %d", errors.ErrorCount)
-	}
-	if refErrors != nil && refErrors.ErrorCount > 0 {
-		t.Logf("Reference parsing errors: %d", refErrors.ErrorCount)
-	}
 
 	t.Log("CreateTimestampBasic test completed successfully")
 }
@@ -107,10 +100,10 @@ func TestCreateTimestampErrorHandling(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			// Parse the time string
-			time, timeErrors := timelib.ParseStrtotime(tc.timeString, timelib.ParseOptions{})
+			time, timeErr := timelib.StrToTime(tc.timeString, nil)
 
 			// Parse the reference time
-			reference, refErrors := timelib.ParseStrtotime(tc.reference, timelib.ParseOptions{})
+			reference, refErr := timelib.StrToTime(tc.reference, nil)
 
 			// Parse timezone info
 			var dummyError int
@@ -118,15 +111,15 @@ func TestCreateTimestampErrorHandling(t *testing.T) {
 
 			// The functions should handle errors gracefully
 			t.Logf("Input: %s, Reference: %s, Timezone: %s", tc.timeString, tc.reference, tc.timezone)
-			t.Logf("  Time: %+v, Errors: %v", time, timeErrors)
-			t.Logf("  Reference: %+v, Errors: %v", reference, refErrors)
+			t.Logf("  Time: %+v, Error: %v", time, timeErr)
+			t.Logf("  Reference: %+v, Error: %v", reference, refErr)
 			t.Logf("  Timezone: %+v, Error: %v", tzInfo, err)
 
-			if timeErrors != nil {
-				t.Logf("  Time Errors: %d warnings, %d errors", timeErrors.WarningCount, timeErrors.ErrorCount)
+			if timeErr != nil {
+				t.Logf("  Time Error: %v", timeErr)
 			}
-			if refErrors != nil {
-				t.Logf("  Reference Errors: %d warnings, %d errors", refErrors.WarningCount, refErrors.ErrorCount)
+			if refErr != nil {
+				t.Logf("  Reference Error: %v", refErr)
 			}
 		})
 	}

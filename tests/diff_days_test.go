@@ -7,13 +7,13 @@ import (
 )
 
 func TestDiffDaysAYear(t *testing.T) {
-	t1, _ := timelib.Strtotime("2021-01-01 GMT")
+	t1, _ := timelib.StrToTime("2021-01-01 GMT", nil)
 	if t1 == nil {
-		t.Skip("Strtotime failed to parse date")
+		t.Skip("StrToTime failed to parse date")
 	}
-	t2, _ := timelib.Strtotime("2021-12-31 GMT")
+	t2, _ := timelib.StrToTime("2021-12-31 GMT", nil)
 	if t2 == nil {
-		t.Skip("Strtotime failed to parse date")
+		t.Skip("StrToTime failed to parse date")
 	}
 
 	diff := t1.Diff(t2)
@@ -25,15 +25,15 @@ func TestDiffDaysAYear(t *testing.T) {
 }
 
 func TestDiffDaysPHP81458_1(t *testing.T) {
-	t1, _ := timelib.Strtotime("2018-07-01 04:00 GMT+0000")
+	t1, _ := timelib.StrToTime("2018-07-01 04:00 GMT+0000", nil)
 	if t1 == nil {
 		t.Skip("Strtotime failed to parse date")
 	}
 	t1.UpdateTS(nil)
 
-	t2, _ := timelib.Strtotime("2018-07-02 00:00")
+	t2, _ := timelib.StrToTime("2018-07-02 00:00", nil)
 	if t2 == nil {
-		t.Skip("Strtotime failed to parse date")
+		t.Skip("StrToTime failed to parse date")
 	}
 	var errCode int
 	tzi2, _ := timelib.ParseTzfile("America/Toronto", timelib.BuiltinDB(), &errCode)
@@ -48,7 +48,7 @@ func TestDiffDaysPHP81458_1(t *testing.T) {
 }
 
 func TestDiffDaysPHP81458_2(t *testing.T) {
-	t1, _ := timelib.Strtotime("2018-12-01 00:00")
+	t1, _ := timelib.StrToTime("2018-12-01 00:00", nil)
 	if t1 == nil {
 		t.Skip("Strtotime failed to parse date")
 	}
@@ -56,9 +56,9 @@ func TestDiffDaysPHP81458_2(t *testing.T) {
 	tzi1, _ := timelib.ParseTzfile("UTC", timelib.BuiltinDB(), &errCode1)
 	t1.UpdateTS(tzi1)
 
-	t2, _ := timelib.Strtotime("2018-12-02 00:01")
+	t2, _ := timelib.StrToTime("2018-12-02 00:01", nil)
 	if t2 == nil {
-		t.Skip("Strtotime failed to parse date")
+		t.Skip("StrToTime failed to parse date")
 	}
 	var errCode2 int
 	tzi2, _ := timelib.ParseTzfile("UTC", timelib.BuiltinDB(), &errCode2)
@@ -73,7 +73,7 @@ func TestDiffDaysPHP81458_2(t *testing.T) {
 }
 
 func TestDiffDaysPHP78452(t *testing.T) {
-	t1, _ := timelib.Strtotime("2019-09-24 11:47:24")
+	t1, _ := timelib.StrToTime("2019-09-24 11:47:24", nil)
 	if t1 == nil {
 		t.Skip("Strtotime failed to parse date")
 	}
@@ -81,9 +81,9 @@ func TestDiffDaysPHP78452(t *testing.T) {
 	tzi1, _ := timelib.ParseTzfile("Asia/Tehran", timelib.BuiltinDB(), &errCode1)
 	t1.UpdateTS(tzi1)
 
-	t2, _ := timelib.Strtotime("2019-08-21 12:47:24")
+	t2, _ := timelib.StrToTime("2019-08-21 12:47:24", nil)
 	if t2 == nil {
-		t.Skip("Strtotime failed to parse date")
+		t.Skip("StrToTime failed to parse date")
 	}
 	var errCode2 int
 	tzi2, _ := timelib.ParseTzfile("Asia/Tehran", timelib.BuiltinDB(), &errCode2)
@@ -98,7 +98,7 @@ func TestDiffDaysPHP78452(t *testing.T) {
 }
 
 func TestDiffDaysPHP74524(t *testing.T) {
-	t1, _ := timelib.Strtotime("2017-11-17 22:05:26.000000")
+	t1, _ := timelib.StrToTime("2017-11-17 22:05:26.000000", nil)
 	if t1 == nil {
 		t.Skip("Strtotime failed to parse date")
 	}
@@ -106,9 +106,9 @@ func TestDiffDaysPHP74524(t *testing.T) {
 	tzi1, _ := timelib.ParseTzfile("Europe/Amsterdam", timelib.BuiltinDB(), &errCode1)
 	t1.UpdateTS(tzi1)
 
-	t2, _ := timelib.Strtotime("2017-04-03 22:29:15.079459")
+	t2, _ := timelib.StrToTime("2017-04-03 22:29:15.079459", nil)
 	if t2 == nil {
-		t.Skip("Strtotime failed to parse date")
+		t.Skip("StrToTime failed to parse date")
 	}
 	var errCode2 int
 	tzi2, _ := timelib.ParseTzfile("Europe/Amsterdam", timelib.BuiltinDB(), &errCode2)
@@ -123,13 +123,13 @@ func TestDiffDaysPHP74524(t *testing.T) {
 }
 
 func TestDiffDaysDateTimeFallType2Type2(t *testing.T) {
-	t1, _ := timelib.Strtotime("2010-11-07 00:15:35 EDT")
+	t1, _ := timelib.StrToTime("2010-11-07 00:15:35 EDT", nil)
 	if t1 == nil {
 		t.Skip("Strtotime failed to parse date")
 	}
-	t2, _ := timelib.Strtotime("2010-11-07 00:10:20 EDT")
+	t2, _ := timelib.StrToTime("2010-11-07 00:10:20 EDT", nil)
 	if t2 == nil {
-		t.Skip("Strtotime failed to parse date")
+		t.Skip("StrToTime failed to parse date")
 	}
 
 	diff := t1.Diff(t2)
@@ -141,7 +141,7 @@ func TestDiffDaysDateTimeFallType2Type2(t *testing.T) {
 }
 
 func TestDiffDaysDateTimeFallType3Type3(t *testing.T) {
-	t1, _ := timelib.Strtotime("2010-11-07 00:15:35")
+	t1, _ := timelib.StrToTime("2010-11-07 00:15:35", nil)
 	if t1 == nil {
 		t.Skip("Strtotime failed to parse date")
 	}
@@ -149,9 +149,9 @@ func TestDiffDaysDateTimeFallType3Type3(t *testing.T) {
 	tzi1, _ := timelib.ParseTzfile("America/New_York", timelib.BuiltinDB(), &errCode1)
 	t1.UpdateTS(tzi1)
 
-	t2, _ := timelib.Strtotime("2010-11-07 00:10:20")
+	t2, _ := timelib.StrToTime("2010-11-07 00:10:20", nil)
 	if t2 == nil {
-		t.Skip("Strtotime failed to parse date")
+		t.Skip("StrToTime failed to parse date")
 	}
 	var errCode2 int
 	tzi2, _ := timelib.ParseTzfile("America/New_York", timelib.BuiltinDB(), &errCode2)

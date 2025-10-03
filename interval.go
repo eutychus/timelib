@@ -46,7 +46,14 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 				parts := strings.Split(intervalPart, "/")
 				if !strings.HasPrefix(parts[0], "P") && strings.HasPrefix(parts[1], "P") {
 					// Parse start datetime
-					begin, parseErrors := Strtotime(parts[0])
+					begin, err := StrToTime(parts[0], nil)
+					var parseErrors *ErrorContainer
+					if err != nil {
+						parseErrors = &ErrorContainer{
+							ErrorCount: 1,
+							ErrorMessages: []ErrorMessage{{Message: err.Error()}},
+						}
+					}
 					if parseErrors != nil && parseErrors.ErrorCount > 0 {
 						if errors != nil {
 							errors.ErrorMessages = append(errors.ErrorMessages, parseErrors.ErrorMessages...)
@@ -90,7 +97,14 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 				parts := strings.Split(intervalPart, "/")
 				if !strings.HasPrefix(parts[0], "P") && strings.HasPrefix(parts[1], "P") {
 					// Parse start datetime
-					begin, parseErrors := Strtotime(parts[0])
+					begin, err := StrToTime(parts[0], nil)
+					var parseErrors *ErrorContainer
+					if err != nil {
+						parseErrors = &ErrorContainer{
+							ErrorCount: 1,
+							ErrorMessages: []ErrorMessage{{Message: err.Error()}},
+						}
+					}
 					if parseErrors != nil && parseErrors.ErrorCount > 0 {
 						if errors != nil {
 							errors.ErrorMessages = append(errors.ErrorMessages, parseErrors.ErrorMessages...)
@@ -144,7 +158,14 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 		// Pattern 3a: Start datetime and duration (2007-03-01T13:00:00Z/P1Y2M3DT4H5M6S)
 		if !strings.HasPrefix(parts[0], "P") && strings.HasPrefix(parts[1], "P") {
 			// Start datetime + duration
-			begin, parseErrors := Strtotime(parts[0])
+			begin, err := StrToTime(parts[0], nil)
+			var parseErrors *ErrorContainer
+			if err != nil {
+				parseErrors = &ErrorContainer{
+					ErrorCount: 1,
+					ErrorMessages: []ErrorMessage{{Message: err.Error()}},
+				}
+			}
 			if parseErrors != nil && parseErrors.ErrorCount > 0 {
 				if errors != nil {
 					errors.ErrorMessages = append(errors.ErrorMessages, parseErrors.ErrorMessages...)
@@ -174,7 +195,14 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 				return nil, nil, nil, 0, err
 			}
 
-			end, parseErrors := Strtotime(parts[1])
+			end, err := StrToTime(parts[1], nil)
+			var parseErrors *ErrorContainer
+			if err != nil {
+				parseErrors = &ErrorContainer{
+					ErrorCount: 1,
+					ErrorMessages: []ErrorMessage{{Message: err.Error()}},
+				}
+			}
 			if parseErrors != nil && parseErrors.ErrorCount > 0 {
 				if errors != nil {
 					errors.ErrorMessages = append(errors.ErrorMessages, parseErrors.ErrorMessages...)
@@ -194,23 +222,23 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 		// Pattern 3c: Start and end datetime (2007-03-01T13:00:00Z/2008-05-11T15:30:00Z)
 		if !strings.HasPrefix(parts[0], "P") && !strings.HasPrefix(parts[1], "P") {
 			// Parse start time
-			begin, parseErrors := Strtotime(parts[0])
-			if parseErrors != nil && parseErrors.ErrorCount > 0 {
+			begin, err := StrToTime(parts[0], nil)
+			if err != nil {
 				if errors != nil {
-					errors.ErrorMessages = append(errors.ErrorMessages, parseErrors.ErrorMessages...)
-					errors.ErrorCount += parseErrors.ErrorCount
+					errors.ErrorCount++
+					errors.ErrorMessages = append(errors.ErrorMessages, ErrorMessage{Message: err.Error()})
 				}
-				return nil, nil, nil, 0, fmt.Errorf("failed to parse start time")
+				return nil, nil, nil, 0, fmt.Errorf("failed to parse start time: %w", err)
 			}
 
 			// Parse end time
-			end, parseErrors := Strtotime(parts[1])
-			if parseErrors != nil && parseErrors.ErrorCount > 0 {
+			end, err := StrToTime(parts[1], nil)
+			if err != nil {
 				if errors != nil {
-					errors.ErrorMessages = append(errors.ErrorMessages, parseErrors.ErrorMessages...)
-					errors.ErrorCount += parseErrors.ErrorCount
+					errors.ErrorCount++
+					errors.ErrorMessages = append(errors.ErrorMessages, ErrorMessage{Message: err.Error()})
 				}
-				return nil, nil, nil, 0, fmt.Errorf("failed to parse end time")
+				return nil, nil, nil, 0, fmt.Errorf("failed to parse end time: %w", err)
 			}
 
 			return begin, end, nil, 0, nil
@@ -242,7 +270,14 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 				parts := strings.Split(intervalPart, "/")
 				if !strings.HasPrefix(parts[0], "P") && strings.HasPrefix(parts[1], "P") {
 					// Parse start datetime
-					begin, parseErrors := Strtotime(parts[0])
+					begin, err := StrToTime(parts[0], nil)
+					var parseErrors *ErrorContainer
+					if err != nil {
+						parseErrors = &ErrorContainer{
+							ErrorCount: 1,
+							ErrorMessages: []ErrorMessage{{Message: err.Error()}},
+						}
+					}
 					if parseErrors != nil && parseErrors.ErrorCount > 0 {
 						if errors != nil {
 							errors.ErrorMessages = append(errors.ErrorMessages, parseErrors.ErrorMessages...)
@@ -286,7 +321,14 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 				parts := strings.Split(intervalPart, "/")
 				if !strings.HasPrefix(parts[0], "P") && strings.HasPrefix(parts[1], "P") {
 					// Parse start datetime
-					begin, parseErrors := Strtotime(parts[0])
+					begin, err := StrToTime(parts[0], nil)
+					var parseErrors *ErrorContainer
+					if err != nil {
+						parseErrors = &ErrorContainer{
+							ErrorCount: 1,
+							ErrorMessages: []ErrorMessage{{Message: err.Error()}},
+						}
+					}
 					if parseErrors != nil && parseErrors.ErrorCount > 0 {
 						if errors != nil {
 							errors.ErrorMessages = append(errors.ErrorMessages, parseErrors.ErrorMessages...)

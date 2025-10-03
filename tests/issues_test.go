@@ -184,9 +184,9 @@ func TestIssue0019_Test6(t *testing.T) {
 func issue23TestAdd(t *testing.T, str, interval string, tzi *timelib.TzInfo) *timelib.Time {
 	t.Helper()
 
-	time, errors := timelib.Strtotime(str)
-	if errors != nil && errors.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time '%s': %v", str, errors.ErrorMessages)
+	time, err := timelib.StrToTime(str, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time '%s': %v", str, err)
 	}
 
 	time.UpdateTS(tzi)
@@ -208,9 +208,9 @@ func issue23TestAdd(t *testing.T, str, interval string, tzi *timelib.TzInfo) *ti
 func issue23TestSub(t *testing.T, str, interval string, tzi *timelib.TzInfo) *timelib.Time {
 	t.Helper()
 
-	time, errors := timelib.Strtotime(str)
-	if errors != nil && errors.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time '%s': %v", str, errors.ErrorMessages)
+	time, err := timelib.StrToTime(str, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time '%s': %v", str, err)
 	}
 
 	time.UpdateTS(tzi)
@@ -232,9 +232,9 @@ func issue23TestSub(t *testing.T, str, interval string, tzi *timelib.TzInfo) *ti
 func issue23TestAddWall(t *testing.T, str, interval string, tzi *timelib.TzInfo) *timelib.Time {
 	t.Helper()
 
-	time, errors := timelib.Strtotime(str)
-	if errors != nil && errors.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time '%s': %v", str, errors.ErrorMessages)
+	time, err := timelib.StrToTime(str, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time '%s': %v", str, err)
 	}
 
 	// For Unix timestamps (@...), SSE is already set correctly, don't call UpdateTS
@@ -702,9 +702,9 @@ func TestIssue0035_Test1(t *testing.T) {
 	defer timelib.TzinfoDtor(tzi)
 
 	str := "2017-12-31 23:59:59.999999 +1 microsecond"
-	time, errors := timelib.Strtotime(str)
-	if errors != nil && errors.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time: %v", errors.ErrorMessages)
+	time, err := timelib.StrToTime(str, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time: %v", err)
 	}
 	defer timelib.TimeDtor(time)
 
@@ -743,9 +743,9 @@ func TestIssue0035_Test2(t *testing.T) {
 	defer timelib.TzinfoDtor(tzi)
 
 	str := "2017-12-31 23:59:59.999999 +2 microsecond"
-	time, errors := timelib.Strtotime(str)
-	if errors != nil && errors.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time: %v", errors.ErrorMessages)
+	time, err := timelib.StrToTime(str, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time: %v", err)
 	}
 	defer timelib.TimeDtor(time)
 
@@ -785,9 +785,9 @@ func TestIssue0016_Test1(t *testing.T) {
 	defer timelib.TzinfoDtor(tzi)
 
 	str := "+10000-01-01 00:00:00.000000"
-	time, errors := timelib.Strtotime(str)
-	if errors != nil && errors.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time: %v", errors.ErrorMessages)
+	time, err := timelib.StrToTime(str, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time: %v", err)
 	}
 	defer timelib.TimeDtor(time)
 
@@ -826,9 +826,9 @@ func TestIssue0016_Test2(t *testing.T) {
 	defer timelib.TzinfoDtor(tzi)
 
 	str := "-10000-01-01 00:00:00.000000"
-	time, errors := timelib.Strtotime(str)
-	if errors != nil && errors.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time: %v", errors.ErrorMessages)
+	time, err := timelib.StrToTime(str, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time: %v", err)
 	}
 	defer timelib.TimeDtor(time)
 
@@ -867,9 +867,9 @@ func TestIssue0016_Test3(t *testing.T) {
 	defer timelib.TzinfoDtor(tzi)
 
 	str := "+100000-01-01 00:00:00.000000"
-	time, errors := timelib.Strtotime(str)
-	if errors != nil && errors.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time: %v", errors.ErrorMessages)
+	time, err := timelib.StrToTime(str, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time: %v", err)
 	}
 	defer timelib.TimeDtor(time)
 
@@ -911,15 +911,15 @@ func TestIssue0050_Test1(t *testing.T) {
 	str1 := "2018-10-11 20:59:06.914653"
 	str2 := "2018-10-11 20:59:07.237419"
 	
-	t1, errors1 := timelib.Strtotime(str1)
-	if errors1 != nil && errors1.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time1: %v", errors1.ErrorMessages)
+	t1, err1 := timelib.StrToTime(str1, nil)
+	if err1 != nil {
+		t.Fatalf("Failed to parse time1: %v", err1)
 	}
 	defer timelib.TimeDtor(t1)
 
-	t2, errors2 := timelib.Strtotime(str2)
-	if errors2 != nil && errors2.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time2: %v", errors2.ErrorMessages)
+	t2, err2 := timelib.StrToTime(str2, nil)
+	if err2 != nil {
+		t.Fatalf("Failed to parse time2: %v", err2)
 	}
 	defer timelib.TimeDtor(t2)
 
@@ -949,15 +949,15 @@ func TestIssue0050_Test2(t *testing.T) {
 	str1 := "2018-10-11 20:59:06.237419"
 	str2 := "2018-10-11 20:59:06.914653"
 	
-	t1, errors1 := timelib.Strtotime(str1)
-	if errors1 != nil && errors1.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time1: %v", errors1.ErrorMessages)
+	t1, err1 := timelib.StrToTime(str1, nil)
+	if err1 != nil {
+		t.Fatalf("Failed to parse time1: %v", err1)
 	}
 	defer timelib.TimeDtor(t1)
 
-	t2, errors2 := timelib.Strtotime(str2)
-	if errors2 != nil && errors2.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time2: %v", errors2.ErrorMessages)
+	t2, err2 := timelib.StrToTime(str2, nil)
+	if err2 != nil {
+		t.Fatalf("Failed to parse time2: %v", err2)
 	}
 	defer timelib.TimeDtor(t2)
 
@@ -988,15 +988,15 @@ func TestIssue0051_Test1(t *testing.T) {
 	str1 := "2018-11-22 13:27:52.089635"
 	str2 := "2018-11-22 13:27:52"
 	
-	t1, errors1 := timelib.Strtotime(str1)
-	if errors1 != nil && errors1.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time1: %v", errors1.ErrorMessages)
+	t1, err1 := timelib.StrToTime(str1, nil)
+	if err1 != nil {
+		t.Fatalf("Failed to parse time1: %v", err1)
 	}
 	defer timelib.TimeDtor(t1)
 
-	t2, errors2 := timelib.Strtotime(str2)
-	if errors2 != nil && errors2.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time2: %v", errors2.ErrorMessages)
+	t2, err2 := timelib.StrToTime(str2, nil)
+	if err2 != nil {
+		t.Fatalf("Failed to parse time2: %v", err2)
 	}
 	defer timelib.TimeDtor(t2)
 
@@ -1029,15 +1029,15 @@ func TestIssue0051_Test2(t *testing.T) {
 	str1 := "2018-11-22 13:27:52"
 	str2 := "2018-11-22 13:27:52.089635"
 	
-	t1, errors1 := timelib.Strtotime(str1)
-	if errors1 != nil && errors1.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time1: %v", errors1.ErrorMessages)
+	t1, err1 := timelib.StrToTime(str1, nil)
+	if err1 != nil {
+		t.Fatalf("Failed to parse time1: %v", err1)
 	}
 	defer timelib.TimeDtor(t1)
 
-	t2, errors2 := timelib.Strtotime(str2)
-	if errors2 != nil && errors2.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time2: %v", errors2.ErrorMessages)
+	t2, err2 := timelib.StrToTime(str2, nil)
+	if err2 != nil {
+		t.Fatalf("Failed to parse time2: %v", err2)
 	}
 	defer timelib.TimeDtor(t2)
 
@@ -1200,15 +1200,15 @@ func TestIssue0069(t *testing.T) {
 	str1 := "2019-10-14T15:08:23.123+02:00"
 	str2 := "-50000 msec"
 
-	t1, errors1 := timelib.Strtotime(str1)
-	if errors1 != nil && errors1.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time1: %v", errors1.ErrorMessages)
+	t1, err1 := timelib.StrToTime(str1, nil)
+	if err1 != nil {
+		t.Fatalf("Failed to parse time1: %v", err1)
 	}
 	defer timelib.TimeDtor(t1)
 
-	t2, errors2 := timelib.Strtotime(str2)
-	if errors2 != nil && errors2.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time2: %v", errors2.ErrorMessages)
+	t2, err2 := timelib.StrToTime(str2, nil)
+	if err2 != nil {
+		t.Fatalf("Failed to parse time2: %v", err2)
 	}
 	defer timelib.TimeDtor(t2)
 
@@ -1243,13 +1243,13 @@ func TestIssue0069(t *testing.T) {
 // Issue 92: Error parsing invalid timestamp
 func TestIssue0092(t *testing.T) {
 	str := "@7."
-	time, errors := timelib.Strtotime(str)
+	time, err := timelib.StrToTime(str, nil)
 	if time != nil {
 		defer timelib.TimeDtor(time)
 	}
 
-	if errors == nil || errors.ErrorCount != 1 {
-		t.Errorf("Expected 1 error, got %d", errors.ErrorCount)
+	if err == nil {
+		t.Errorf("Expected 1 error, got %d", 1)
 	}
 }
 
@@ -1264,16 +1264,16 @@ func TestIssue0093_Test1(t *testing.T) {
 	defer timelib.TzinfoDtor(tzi)
 
 	str := "2006-01-02T15:04:05.123456789Z"
-	time, errors := timelib.Strtotime(str)
-	if errors != nil && errors.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time: %v", errors.ErrorMessages)
+	time, err := timelib.StrToTime(str, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time: %v", err)
 	}
 	defer timelib.TimeDtor(time)
 
 	time.UpdateTS(tzi)
 
-	if errors != nil && errors.ErrorCount != 0 {
-		t.Errorf("Expected 0 errors, got %d", errors.ErrorCount)
+	if err != nil {
+		t.Errorf("Expected no error, got: %v", err)
 	}
 	if time.Y != 2006 {
 		t.Errorf("Expected year=2006, got %d", time.Y)
@@ -1307,13 +1307,13 @@ func TestIssue0094(t *testing.T) {
 		str += "x"
 	}
 	
-	time, errors := timelib.Strtotime(str)
+	time, err := timelib.StrToTime(str, nil)
 	if time != nil {
 		defer timelib.TimeDtor(time)
 	}
 
 	// Should handle gracefully without crashing
-	if errors == nil {
+	if err == nil {
 		t.Error("Expected errors for invalid string")
 	}
 }
@@ -1359,9 +1359,9 @@ func testParseRelative(t *testing.T, tzid string, ts int64, modify string) (*tim
 	timelib.SetTimezone(time, tzi)
 	time.Unixtime2local(ts)
 
-	update, errors := timelib.Strtotime(modify)
-	if errors != nil && errors.ErrorCount > 0 {
-		t.Fatalf("Failed to parse modify string: %v", errors.ErrorMessages)
+	update, err := timelib.StrToTime(modify, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse modify string: %v", err)
 	}
 
 	timelib.FillHoles(update, time, timelib.TIMELIB_NO_CLONE)
@@ -1477,9 +1477,9 @@ func TestTzcorparse02(t *testing.T) {
 // tzabbrparse_01: Timezone abbreviation parsing
 func TestTzabbrparse01(t *testing.T) {
 	str := "Sun, 14 Aug 2005 17:50:44 -0730"
-	time, errors := timelib.Strtotime(str)
-	if errors != nil && errors.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time: %v", errors.ErrorMessages)
+	time, err := timelib.StrToTime(str, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time: %v", err)
 	}
 	defer timelib.TimeDtor(time)
 
@@ -1509,9 +1509,9 @@ func TestTzabbrparse01(t *testing.T) {
 // weekday_time_part_01: Weekday with time component
 func TestWeekdayTimePart01(t *testing.T) {
 	str := "Monday 03:59:59"
-	time, errors := timelib.Strtotime(str)
-	if errors != nil && errors.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time: %v", errors.ErrorMessages)
+	time, err := timelib.StrToTime(str, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time: %v", err)
 	}
 	defer timelib.TimeDtor(time)
 
@@ -1537,9 +1537,9 @@ func TestWeekdayTimePart01(t *testing.T) {
 // first_day_of_time_01: First day of month test 1
 func TestFirstDayOfTime01(t *testing.T) {
 	str := "first day of January 2023"
-	time, errors := timelib.Strtotime(str)
-	if errors != nil && errors.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time: %v", errors.ErrorMessages)
+	time, err := timelib.StrToTime(str, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time: %v", err)
 	}
 	defer timelib.TimeDtor(time)
 
@@ -1580,9 +1580,9 @@ func TestFirstDayOfTime02(t *testing.T) {
 	baseTime.HaveTime = true
 	defer timelib.TimeDtor(baseTime)
 
-	time, errors := timelib.Strtotime(str)
-	if errors != nil && errors.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time: %v", errors.ErrorMessages)
+	time, err := timelib.StrToTime(str, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time: %v", err)
 	}
 	defer timelib.TimeDtor(time)
 
@@ -1611,9 +1611,9 @@ func TestFirstDayOfTime02(t *testing.T) {
 // last_day_of_time_01: Last day of month test 1
 func TestLastDayOfTime01(t *testing.T) {
 	str := "last day of January 2023"
-	time, errors := timelib.Strtotime(str)
-	if errors != nil && errors.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time: %v", errors.ErrorMessages)
+	time, err := timelib.StrToTime(str, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time: %v", err)
 	}
 	defer timelib.TimeDtor(time)
 
@@ -1654,9 +1654,9 @@ func TestLastDayOfTime02(t *testing.T) {
 	baseTime.HaveTime = true
 	defer timelib.TimeDtor(baseTime)
 
-	time, errors := timelib.Strtotime(str)
-	if errors != nil && errors.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time: %v", errors.ErrorMessages)
+	time, err := timelib.StrToTime(str, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time: %v", err)
 	}
 	defer timelib.TimeDtor(time)
 
@@ -1685,16 +1685,16 @@ func TestLastDayOfTime02(t *testing.T) {
 // php81106: PHP bug 81106 test
 func TestPhp81106(t *testing.T) {
 	str := "2021-10-31T02:30:00+02:00[Europe/Berlin]"
-	time, errors := timelib.Strtotime(str)
+	time, err := timelib.StrToTime(str, nil)
 	if time != nil {
 		defer timelib.TimeDtor(time)
 	}
 
 	// This format may not be fully supported, but should not crash
 	// The test mainly ensures the parser handles the bracketed timezone
-	if errors != nil && errors.ErrorCount > 0 {
+	if err != nil {
 		// Expected to have errors for unsupported format
-		t.Logf("Parsing error (expected): %v", errors.ErrorMessages)
+		t.Logf("Parsing error (expected): %v", err)
 	}
 }
 
@@ -1703,9 +1703,9 @@ func TestSanitizerIssue(t *testing.T) {
 	// This test is to ensure we don't crash on edge cases
 	// The original C test had a very long string to test buffer handling
 	str := "2023-01-01 00:00:00"
-	time, errors := timelib.Strtotime(str)
-	if errors != nil && errors.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time: %v", errors.ErrorMessages)
+	time, err := timelib.StrToTime(str, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time: %v", err)
 	}
 	defer timelib.TimeDtor(time)
 

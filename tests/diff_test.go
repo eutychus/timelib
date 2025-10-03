@@ -23,12 +23,12 @@ func testParse(tzid, from, to string) (*timelib.Time, *timelib.Time, *timelib.Re
 	tNow.I = 0
 	tNow.S = 0
 
-	tFrom, _ := timelib.Strtotime(from)
+	tFrom, _ := timelib.StrToTime(from, nil)
 	if tFrom == nil {
 		return nil, nil, nil, err
 	}
 
-	tTo, _ := timelib.Strtotime(to)
+	tTo, _ := timelib.StrToTime(to, nil)
 	if tTo == nil {
 		return nil, nil, nil, err
 	}

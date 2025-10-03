@@ -22,9 +22,9 @@ func testAddWall(t *testing.T, base, tzid, interval string, us int64, invert boo
 		t.Fatalf("Failed to parse tzfile %s: %v", tzid, err)
 	}
 
-	tBase, errorsBase := timelib.Strtotime(base)
-	if errorsBase != nil && errorsBase.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time '%s': %v", base, errorsBase.ErrorMessages)
+	tBase, err := timelib.StrToTime(base, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time '%s': %v", base, err)
 	}
 
 	tBase.UpdateTS(tzi)
@@ -84,9 +84,9 @@ func testSubWall(t *testing.T, base, tzid, interval string, us int64, invert boo
 		t.Fatalf("Failed to parse tzfile %s: %v", tzid, err)
 	}
 
-	tBase, errorsBase := timelib.Strtotime(base)
-	if errorsBase != nil && errorsBase.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time '%s': %v", base, errorsBase.ErrorMessages)
+	tBase, err := timelib.StrToTime(base, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time '%s': %v", base, err)
 	}
 
 	tBase.UpdateTS(tzi)

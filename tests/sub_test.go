@@ -12,19 +12,15 @@ import (
 func testSubWithOffset(t *testing.T, offset int32, from string, period string) *timelib.Time {
 	t.Helper()
 
-	tNow, errorsNow := timelib.Strtotime("now")
-	if errorsNow != nil && errorsNow.ErrorCount > 0 {
-		t.Fatalf("Failed to parse 'now': %v", errorsNow.ErrorMessages)
+	tFrom, err := timelib.StrToTime(from, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time '%s': %v", from, err)
 	}
 
-	tFrom, errorsFrom := timelib.Strtotime(from)
-	if errorsFrom != nil && errorsFrom.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time '%s': %v", from, errorsFrom.ErrorMessages)
-	}
-
-	timelib.FillHoles(tFrom, tNow, timelib.TIMELIB_NO_CLONE)
+	// No need to FillHoles - the date strings in tests are complete
 	tFrom.ZoneType = timelib.TIMELIB_ZONETYPE_OFFSET
 	tFrom.Z = offset
+	tFrom.Dst = 0  // Initialize Dst when setting timezone offset
 
 	tFrom.UpdateTS(nil)
 
@@ -39,7 +35,7 @@ func testSubWithOffset(t *testing.T, offset int32, from string, period string) *
 	}
 
 	errorsContainer := &timelib.ErrorContainer{}
-	_, _, iPeriod, _, err := timelib.Strtointerval(periodStr, errorsContainer)
+	_, _, iPeriod, _, err = timelib.Strtointerval(periodStr, errorsContainer)
 	if err != nil {
 		t.Fatalf("Failed to parse interval '%s': %v", periodStr, err)
 	}
@@ -63,17 +59,12 @@ func testSubWithTimezone(t *testing.T, tzid string, from string, period string) 
 		t.Fatalf("Failed to parse timezone '%s': %v", tzid, err)
 	}
 
-	tNow, errorsNow := timelib.Strtotime("now")
-	if errorsNow != nil && errorsNow.ErrorCount > 0 {
-		t.Fatalf("Failed to parse 'now': %v", errorsNow.ErrorMessages)
+	tFrom, err := timelib.StrToTime(from, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse time '%s': %v", from, err)
 	}
 
-	tFrom, errorsFrom := timelib.Strtotime(from)
-	if errorsFrom != nil && errorsFrom.ErrorCount > 0 {
-		t.Fatalf("Failed to parse time '%s': %v", from, errorsFrom.ErrorMessages)
-	}
-
-	timelib.FillHoles(tFrom, tNow, timelib.TIMELIB_NO_CLONE)
+	// No need to FillHoles - the date strings in tests are complete
 	tFrom.UpdateTS(tzi)
 
 	// Parse interval
