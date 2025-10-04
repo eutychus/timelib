@@ -16,12 +16,12 @@ func ParseFromFormatWithMap(format, input string, tzdb *TzDB, tzWrapper func(str
 
 	// Validate inputs
 	if format == "" {
-		errors.addError(TIMELIB_ERROR_EMPTY_STRING, "Format string is empty")
+		errors.addError(TIMELIB_ERR_EMPTY_STRING, "Format string is empty")
 		return nil, errors
 	}
 
 	if input == "" {
-		errors.addError(TIMELIB_ERROR_EMPTY_STRING, "Input string is empty")
+		errors.addError(TIMELIB_ERR_EMPTY_STRING, "Input string is empty")
 		return nil, errors
 	}
 
@@ -346,7 +346,7 @@ func parseWithBasicFormat(format, input string, result *Time, errors *ErrorConta
 	// Try to parse with Go's time.Parse
 	t, err := time.Parse(format, input)
 	if err != nil {
-		errors.addError(TIMELIB_ERROR_UNEXPECTED_DATA, fmt.Sprintf("Failed to parse with format: %v", err))
+		errors.addError(TIMELIB_ERR_UNEXPECTED_DATA, fmt.Sprintf("Failed to parse with format: %v", err))
 		return fmt.Errorf("failed to parse with format: %v", err)
 	}
 

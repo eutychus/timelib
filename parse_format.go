@@ -117,11 +117,11 @@ func (p *FormatParser) Parse() *Time {
 				expectedChar := rune(p.format[p.formatPos])
 				// Check if we have enough input left
 				if p.position >= len(p.input) {
-					p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, fmt.Sprintf("Expected character '%c' after escape, but input ended", expectedChar))
+					p.addError(TIMELIB_ERR_UNEXPECTED_DATA, fmt.Sprintf("Expected character '%c' after escape, but input ended", expectedChar))
 					return p.time
 				}
 				if !p.matchCharacter(expectedChar) {
-					p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, fmt.Sprintf("Expected character '%c' after escape, got '%c'", expectedChar, p.input[p.position]))
+					p.addError(TIMELIB_ERR_UNEXPECTED_DATA, fmt.Sprintf("Expected character '%c' after escape, got '%c'", expectedChar, p.input[p.position]))
 					return p.time
 				}
 				p.position++  // Advance input position past the matched character
@@ -130,7 +130,7 @@ func (p *FormatParser) Parse() *Time {
 			} else {
 				// Backslash at end of format string - treat as literal
 				if p.position >= len(p.input) || p.input[p.position] != '\\' {
-					p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected backslash character")
+					p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected backslash character")
 					return p.time
 				}
 				p.position++
@@ -144,7 +144,7 @@ func (p *FormatParser) Parse() *Time {
 		if spec == nil {
 			// Literal character - must match exactly
 			if !p.matchCharacter(formatChar) {
-				p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Literal character mismatch")
+				p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Literal character mismatch")
 				return p.time
 			}
 			p.formatPos++
@@ -318,14 +318,14 @@ func (p *FormatParser) parseFormatSpecifier(spec *FormatSpecifier) bool {
 // parseYearFourDigit parses 4-digit year
 func (p *FormatParser) parseYearFourDigit() bool {
 	if p.position+4 > len(p.input) {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected 4-digit year")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected 4-digit year")
 		return false
 	}
 
 	yearStr := p.input[p.position : p.position+4]
 	year, err := strconv.ParseInt(yearStr, 10, 64)
 	if err != nil {
-		p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid year")
+		p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid year")
 		return false
 	}
 
@@ -337,14 +337,14 @@ func (p *FormatParser) parseYearFourDigit() bool {
 // parseYearTwoDigit parses 2-digit year
 func (p *FormatParser) parseYearTwoDigit() bool {
 	if p.position+2 > len(p.input) {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected 2-digit year")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected 2-digit year")
 		return false
 	}
 
 	yearStr := p.input[p.position : p.position+2]
 	year, err := strconv.ParseInt(yearStr, 10, 64)
 	if err != nil {
-		p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid year")
+		p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid year")
 		return false
 	}
 
@@ -363,7 +363,7 @@ func (p *FormatParser) parseYearTwoDigit() bool {
 // parseYearExpanded parses an expanded year with optional sign and up to 19 digits
 func (p *FormatParser) parseYearExpanded() bool {
 	if p.position >= len(p.input) {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected expanded year")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected expanded year")
 		return false
 	}
 
@@ -384,7 +384,7 @@ func (p *FormatParser) parseYearExpanded() bool {
 	}
 
 	if p.position == digitStart {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected digits in expanded year")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected digits in expanded year")
 		p.position = start // Reset position
 		return false
 	}
@@ -392,7 +392,7 @@ func (p *FormatParser) parseYearExpanded() bool {
 	yearStr := p.input[digitStart:p.position]
 	year, err := strconv.ParseInt(yearStr, 10, 64)
 	if err != nil {
-		p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid expanded year")
+		p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid expanded year")
 		p.position = start // Reset position
 		return false
 	}
@@ -410,7 +410,7 @@ func (p *FormatParser) parseMonthTwoDigitPadded() bool {
 	}
 
 	if p.position == start {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected month")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected month")
 		return false
 	}
 
@@ -421,7 +421,7 @@ func (p *FormatParser) parseMonthTwoDigitPadded() bool {
 	monthStr := p.input[start:p.position]
 	month, err := strconv.ParseInt(monthStr, 10, 64)
 	if err != nil || month < 1 || month > 12 {
-		p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid month")
+		p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid month")
 		return false
 	}
 
@@ -438,14 +438,14 @@ func (p *FormatParser) parseMonthTwoDigit() bool {
 	}
 
 	if p.position == start {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected month")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected month")
 		return false
 	}
 
 	monthStr := p.input[start:p.position]
 	month, err := strconv.ParseInt(monthStr, 10, 64)
 	if err != nil || month < 1 || month > 12 {
-		p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid month")
+		p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid month")
 		return false
 	}
 
@@ -461,7 +461,7 @@ func (p *FormatParser) parseDayTwoDigitPadded() bool {
 	}
 
 	if p.position == start {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected day")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected day")
 		return false
 	}
 
@@ -472,7 +472,7 @@ func (p *FormatParser) parseDayTwoDigitPadded() bool {
 	dayStr := p.input[start:p.position]
 	day, err := strconv.ParseInt(dayStr, 10, 64)
 	if err != nil || day < 1 || day > 31 {
-		p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid day")
+		p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid day")
 		return false
 	}
 
@@ -489,14 +489,14 @@ func (p *FormatParser) parseDayTwoDigit() bool {
 	}
 
 	if p.position == start {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected day")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected day")
 		return false
 	}
 
 	dayStr := p.input[start:p.position]
 	day, err := strconv.ParseInt(dayStr, 10, 64)
 	if err != nil || day < 1 || day > 31 {
-		p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid day")
+		p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid day")
 		return false
 	}
 
@@ -512,7 +512,7 @@ func (p *FormatParser) parseHour24() bool {
 	}
 
 	if p.position == start {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected hour")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected hour")
 		return false
 	}
 
@@ -523,7 +523,7 @@ func (p *FormatParser) parseHour24() bool {
 	hourStr := p.input[start:p.position]
 	hour, err := strconv.ParseInt(hourStr, 10, 64)
 	if err != nil || hour < 0 || hour > 23 {
-		p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid hour")
+		p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid hour")
 		return false
 	}
 
@@ -540,7 +540,7 @@ func (p *FormatParser) parseHour12() bool {
 	}
 
 	if p.position == start {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected hour")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected hour")
 		return false
 	}
 
@@ -551,7 +551,7 @@ func (p *FormatParser) parseHour12() bool {
 	hourStr := p.input[start:p.position]
 	hour, err := strconv.ParseInt(hourStr, 10, 64)
 	if err != nil || hour < 1 || hour > 12 {
-		p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid 12-hour format")
+		p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid 12-hour format")
 		return false
 	}
 
@@ -568,7 +568,7 @@ func (p *FormatParser) parseMinute() bool {
 	}
 
 	if p.position == start {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected minute")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected minute")
 		return false
 	}
 
@@ -579,7 +579,7 @@ func (p *FormatParser) parseMinute() bool {
 	minuteStr := p.input[start:p.position]
 	minute, err := strconv.ParseInt(minuteStr, 10, 64)
 	if err != nil || minute < 0 || minute > 59 {
-		p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid minute")
+		p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid minute")
 		return false
 	}
 
@@ -596,7 +596,7 @@ func (p *FormatParser) parseSecond() bool {
 	}
 
 	if p.position == start {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected second")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected second")
 		return false
 	}
 
@@ -607,7 +607,7 @@ func (p *FormatParser) parseSecond() bool {
 	secondStr := p.input[start:p.position]
 	second, err := strconv.ParseInt(secondStr, 10, 64)
 	if err != nil || second < 0 || second > 59 {
-		p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid second")
+		p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid second")
 		return false
 	}
 
@@ -627,14 +627,14 @@ func (p *FormatParser) parseMicrosecond() bool {
 	}
 
 	if digits == 0 {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected microseconds")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected microseconds")
 		return false
 	}
 
 	microStr := p.input[start:p.position]
 	microseconds, err := strconv.ParseInt(microStr, 10, 64)
 	if err != nil {
-		p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid microseconds")
+		p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid microseconds")
 		return false
 	}
 
@@ -651,7 +651,7 @@ func (p *FormatParser) parseMicrosecond() bool {
 // parseTimezoneOffset parses timezone offset
 func (p *FormatParser) parseTimezoneOffset() bool {
 	if p.position >= len(p.input) {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected timezone offset")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected timezone offset")
 		return false
 	}
 
@@ -686,14 +686,14 @@ func (p *FormatParser) parseTimezoneOffset() bool {
 
 	// Parse hours
 	if p.position+2 > len(p.input) {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected timezone hours")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected timezone hours")
 		return false
 	}
 
 	hourStr := p.input[p.position : p.position+2]
 	hours, err := strconv.ParseInt(hourStr, 10, 64)
 	if err != nil {
-		p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid timezone hours")
+		p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid timezone hours")
 		return false
 	}
 	p.position += 2
@@ -703,13 +703,13 @@ func (p *FormatParser) parseTimezoneOffset() bool {
 	if p.position < len(p.input) && p.input[p.position] == ':' {
 		p.position++
 		if p.position+2 > len(p.input) {
-			p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected timezone minutes")
+			p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected timezone minutes")
 			return false
 		}
 		minuteStr := p.input[p.position : p.position+2]
 		minutes, err = strconv.ParseInt(minuteStr, 10, 64)
 		if err != nil {
-			p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid timezone minutes")
+			p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid timezone minutes")
 			return false
 		}
 		p.position += 2
@@ -719,7 +719,7 @@ func (p *FormatParser) parseTimezoneOffset() bool {
 			minuteStr := p.input[p.position : p.position+2]
 			minutes, err = strconv.ParseInt(minuteStr, 10, 64)
 			if err != nil {
-				p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid timezone minutes")
+				p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid timezone minutes")
 				return false
 			}
 			p.position += 2
@@ -782,7 +782,7 @@ func (p *FormatParser) parseTextualMonthFull() bool {
 		}
 	}
 
-	p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Invalid month name")
+	p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Invalid month name")
 	return false
 }
 
@@ -791,7 +791,7 @@ func (p *FormatParser) parseTextualMonthShort() bool {
 	months := []string{"jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"}
 
 	if p.position+3 > len(p.input) {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected 3-letter month")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected 3-letter month")
 		return false
 	}
 
@@ -804,7 +804,7 @@ func (p *FormatParser) parseTextualMonthShort() bool {
 		}
 	}
 
-	p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Invalid month abbreviation")
+	p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Invalid month abbreviation")
 	return false
 }
 
@@ -813,7 +813,7 @@ func (p *FormatParser) parseTextualDayShort() bool {
 	days := []string{"sun", "mon", "tue", "wed", "thu", "fri", "sat"}
 
 	if p.position+3 > len(p.input) {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected 3-letter day")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected 3-letter day")
 		return false
 	}
 
@@ -827,7 +827,7 @@ func (p *FormatParser) parseTextualDayShort() bool {
 		}
 	}
 
-	p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Invalid day abbreviation")
+	p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Invalid day abbreviation")
 	return false
 }
 
@@ -848,7 +848,7 @@ func (p *FormatParser) parseTextualDayFull() bool {
 		}
 	}
 
-	p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Invalid day name")
+	p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Invalid day name")
 	return false
 }
 
@@ -896,7 +896,7 @@ func (p *FormatParser) parseMeridian() bool {
 		}
 	}
 
-	p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Invalid meridian")
+	p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Invalid meridian")
 	return false
 }
 
@@ -916,14 +916,14 @@ func (p *FormatParser) parseEpochSeconds() bool {
 	}
 
 	if p.position == start || (negative && p.position == start+1) {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected timestamp")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected timestamp")
 		return false
 	}
 
 	timestampStr := p.input[start:p.position]
 	timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
 	if err != nil {
-		p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid timestamp")
+		p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid timestamp")
 		return false
 	}
 
@@ -961,14 +961,14 @@ func (p *FormatParser) parseDayOfYear() bool {
 	}
 
 	if p.position == start {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected day of year")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected day of year")
 		return false
 	}
 
 	dayStr := p.input[start:p.position]
 	dayOfYear, err := strconv.ParseInt(dayStr, 10, 64)
 	if err != nil || dayOfYear < 1 || dayOfYear > 366 {
-		p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid day of year")
+		p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid day of year")
 		return false
 	}
 
@@ -1015,19 +1015,17 @@ func (p *FormatParser) parseWhitespace() bool {
 }
 
 // parseSeparator parses separator characters
+// In the C implementation, this matches ONE separator character and increments position once
+// It does NOT consume multiple consecutive separators (that would be parseAnySeparator or similar)
 func (p *FormatParser) parseSeparator() bool {
 	if p.position >= len(p.input) {
 		return true // Optional separator
 	}
 
-	// Skip common separator characters
-	for p.position < len(p.input) {
-		char := p.input[p.position]
-		if char == ' ' || char == '\t' || char == '-' || char == '/' || char == '.' || char == ',' || char == ':' || char == ';' {
-			p.position++
-		} else {
-			break
-		}
+	// Match ONE separator character (like C implementation does with ++ptr)
+	char := p.input[p.position]
+	if char == ' ' || char == '\t' || char == '-' || char == '/' || char == '.' || char == ',' || char == ':' || char == ';' {
+		p.position++
 	}
 	return true
 }
@@ -1099,14 +1097,14 @@ func (p *FormatParser) parseYearISO() bool {
 // parseDayOfWeekISO parses ISO day of week (1-7, Monday=1)
 func (p *FormatParser) parseDayOfWeekISO() bool {
 	if p.position+1 > len(p.input) {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected ISO day of week")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected ISO day of week")
 		return false
 	}
 
 	dayStr := p.input[p.position : p.position+1]
 	day, err := strconv.ParseInt(dayStr, 10, 64)
 	if err != nil || day < 1 || day > 7 {
-		p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid ISO day of week")
+		p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid ISO day of week")
 		return false
 	}
 
@@ -1120,13 +1118,13 @@ func (p *FormatParser) parseDayOfWeekISO() bool {
 func (p *FormatParser) parseMillisecond() bool {
 	// Find decimal point or colon
 	if p.position >= len(p.input) {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected milliseconds")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected milliseconds")
 		return false
 	}
 
 	sep := p.input[p.position]
 	if sep != '.' && sep != ':' {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected decimal separator")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected decimal separator")
 		return false
 	}
 	p.position++
@@ -1140,14 +1138,14 @@ func (p *FormatParser) parseMillisecond() bool {
 	}
 
 	if digits == 0 {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected milliseconds")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected milliseconds")
 		return false
 	}
 
 	milliStr := p.input[start:p.position]
 	milliseconds, err := strconv.ParseInt(milliStr, 10, 64)
 	if err != nil {
-		p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid milliseconds")
+		p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid milliseconds")
 		return false
 	}
 
@@ -1163,7 +1161,7 @@ func (p *FormatParser) parseMillisecond() bool {
 // parseTimezoneOffsetMinutes parses timezone offset in minutes
 func (p *FormatParser) parseTimezoneOffsetMinutes() bool {
 	if p.position >= len(p.input) {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected timezone offset in minutes")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected timezone offset in minutes")
 		return false
 	}
 
@@ -1194,14 +1192,14 @@ func (p *FormatParser) parseTimezoneOffsetMinutes() bool {
 	}
 
 	if p.position == start {
-		p.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Expected timezone minutes")
+		p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected timezone minutes")
 		return false
 	}
 
 	minutesStr := p.input[start:p.position]
 	minutes, err := strconv.ParseInt(minutesStr, 10, 64)
 	if err != nil {
-		p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid timezone minutes")
+		p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid timezone minutes")
 		return false
 	}
 
@@ -1241,7 +1239,7 @@ func (p *FormatParser) parseWeekOfYearISO() bool {
 		}
 	}
 
-	p.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid ISO week")
+	p.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid ISO week")
 	return false
 }
 

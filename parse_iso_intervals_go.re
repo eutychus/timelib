@@ -329,8 +329,6 @@ any
 	goto std
 }
 */
-	// Unreachable - all paths goto std or return
-	return EOI
 }
 
 /*!max:re2c */

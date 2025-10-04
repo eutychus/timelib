@@ -20,10 +20,10 @@ func TestRenderTimestamp(t *testing.T) {
 	var dummyError int
 	tz, err := timelib.ParseTzfile("Europe/Amsterdam", timelib.BuiltinDB(), &dummyError)
 	if err != nil {
-		t.Skipf("Europe/Amsterdam timezone not available: %v", err)
+		t.Errorf("Europe/Amsterdam timezone not available: %v", err)
 	}
 	if dummyError != timelib.TIMELIB_ERROR_NO_ERROR {
-		t.Skipf("Europe/Amsterdam timezone parse error: %d", dummyError)
+		t.Errorf("Europe/Amsterdam timezone parse error: %d", dummyError)
 	}
 
 	timelib.SetTimezone(time, tz)

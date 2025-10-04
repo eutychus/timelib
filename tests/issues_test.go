@@ -902,7 +902,7 @@ func TestIssue0016_Test3(t *testing.T) {
 	}
 }
 
-// Issue 50: Microsecond precision in diff calculations  
+// Issue 50: Microsecond precision in diff calculations
 func TestIssue0050_Test1(t *testing.T) {
 	testDirectory, _ := timelib.Zoneinfo("files")
 	var errorCode int
@@ -914,7 +914,7 @@ func TestIssue0050_Test1(t *testing.T) {
 
 	str1 := "2018-10-11 20:59:06.914653"
 	str2 := "2018-10-11 20:59:07.237419"
-	
+
 	t1, err1 := timelib.StrToTime(str1, nil)
 	if err1 != nil {
 		t.Fatalf("Failed to parse time1: %v", err1)
@@ -952,7 +952,7 @@ func TestIssue0050_Test2(t *testing.T) {
 
 	str1 := "2018-10-11 20:59:06.237419"
 	str2 := "2018-10-11 20:59:06.914653"
-	
+
 	t1, err1 := timelib.StrToTime(str1, nil)
 	if err1 != nil {
 		t.Fatalf("Failed to parse time1: %v", err1)
@@ -991,7 +991,7 @@ func TestIssue0051_Test1(t *testing.T) {
 
 	str1 := "2018-11-22 13:27:52.089635"
 	str2 := "2018-11-22 13:27:52"
-	
+
 	t1, err1 := timelib.StrToTime(str1, nil)
 	if err1 != nil {
 		t.Fatalf("Failed to parse time1: %v", err1)
@@ -1032,7 +1032,7 @@ func TestIssue0051_Test2(t *testing.T) {
 
 	str1 := "2018-11-22 13:27:52"
 	str2 := "2018-11-22 13:27:52.089635"
-	
+
 	t1, err1 := timelib.StrToTime(str1, nil)
 	if err1 != nil {
 		t.Fatalf("Failed to parse time1: %v", err1)
@@ -1310,7 +1310,7 @@ func TestIssue0094(t *testing.T) {
 	for i := 0; i < 20000; i++ {
 		str += "x"
 	}
-	
+
 	time, err := timelib.StrToTime(str, nil)
 	if time != nil {
 		defer timelib.TimeDtor(time)
@@ -1326,7 +1326,7 @@ func TestIssue0094(t *testing.T) {
 func TestUpdateTS(t *testing.T) {
 	testDirectory, _ := timelib.Zoneinfo("files")
 	var errorCode int
-	
+
 	ts := int64(1289109600)
 	tz := "America/New_York"
 	tzi, err := timelib.ParseTzfile(tz, testDirectory, &errorCode)
@@ -1338,20 +1338,20 @@ func TestUpdateTS(t *testing.T) {
 	timelib.SetTimezone(time, tzi)
 	time.Unixtime2local(ts)
 	time.UpdateTS(nil)
-	
+
 	// Clean up
 	if time.TzInfo != nil {
 		timelib.TzinfoDtor(time.TzInfo)
 	}
 	timelib.TimeDtor(time)
-	
+
 	// Test passed if no crash
 }
 
 // Helper for relative time tests
 func testParseRelative(t *testing.T, tzid string, ts int64, modify string) (*timelib.Time, *timelib.Time, *timelib.TzInfo) {
 	t.Helper()
-	
+
 	testDirectory, _ := timelib.Zoneinfo("files")
 	var errorCode int
 	tzi, err := timelib.ParseTzfile(tzid, testDirectory, &errorCode)
@@ -1528,7 +1528,7 @@ func TestWeekdayTimePart01(t *testing.T) {
 	if time.S != 59 {
 		t.Errorf("Expected second=59, got %d", time.S)
 	}
-	
+
 	// Should have relative weekday
 	if !time.Relative.HaveWeekdayRelative {
 		t.Error("Expected have_weekday_relative=true")
@@ -1571,7 +1571,7 @@ func TestFirstDayOfTime01(t *testing.T) {
 // first_day_of_time_02: First day of month test 2
 func TestFirstDayOfTime02(t *testing.T) {
 	str := "first day of next month"
-	
+
 	// Use a known base time: 2023-01-15
 	baseTime := timelib.TimeCtor()
 	baseTime.Y = 2023
@@ -1645,7 +1645,7 @@ func TestLastDayOfTime01(t *testing.T) {
 // last_day_of_time_02: Last day of month test 2
 func TestLastDayOfTime02(t *testing.T) {
 	str := "last day of next month"
-	
+
 	// Use a known base time: 2023-01-15
 	baseTime := timelib.TimeCtor()
 	baseTime.Y = 2023

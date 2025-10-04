@@ -11,7 +11,7 @@ import (
 func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, int, error) {
 	if s == "" {
 		if errors != nil {
-			errors.addError(TIMELIB_ERROR_EMPTY_STRING, "Empty interval string")
+			errors.addError(TIMELIB_ERR_EMPTY_STRING, "Empty interval string")
 		}
 		return nil, nil, nil, 0, fmt.Errorf("empty interval string")
 	}
@@ -32,7 +32,7 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 			recurrences, err := strconv.Atoi(matches[1])
 			if err != nil {
 				if errors != nil {
-					errors.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid recurrence count")
+					errors.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid recurrence count")
 				}
 				return nil, nil, nil, 0, fmt.Errorf("invalid recurrence count")
 			}
@@ -50,7 +50,7 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 					var parseErrors *ErrorContainer
 					if err != nil {
 						parseErrors = &ErrorContainer{
-							ErrorCount: 1,
+							ErrorCount:    1,
 							ErrorMessages: []ErrorMessage{{Message: err.Error()}},
 						}
 					}
@@ -79,7 +79,7 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 
 			// If we get here, the format is not supported
 			if errors != nil {
-				errors.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Invalid recurring interval format")
+				errors.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Invalid recurring interval format")
 			}
 			return nil, nil, nil, 0, fmt.Errorf("invalid recurring interval format")
 		}
@@ -101,7 +101,7 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 					var parseErrors *ErrorContainer
 					if err != nil {
 						parseErrors = &ErrorContainer{
-							ErrorCount: 1,
+							ErrorCount:    1,
 							ErrorMessages: []ErrorMessage{{Message: err.Error()}},
 						}
 					}
@@ -130,7 +130,7 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 
 			// If we get here, the format is not supported
 			if errors != nil {
-				errors.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Invalid infinite recurring interval format")
+				errors.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Invalid infinite recurring interval format")
 			}
 			return nil, nil, nil, 0, fmt.Errorf("invalid infinite recurring interval format")
 		}
@@ -150,7 +150,7 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 		parts := strings.Split(s, "/")
 		if len(parts) != 2 {
 			if errors != nil {
-				errors.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Invalid interval format: expected exactly one '/' separator")
+				errors.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Invalid interval format: expected exactly one '/' separator")
 			}
 			return nil, nil, nil, 0, fmt.Errorf("invalid interval format")
 		}
@@ -162,7 +162,7 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 			var parseErrors *ErrorContainer
 			if err != nil {
 				parseErrors = &ErrorContainer{
-					ErrorCount: 1,
+					ErrorCount:    1,
 					ErrorMessages: []ErrorMessage{{Message: err.Error()}},
 				}
 			}
@@ -199,7 +199,7 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 			var parseErrors *ErrorContainer
 			if err != nil {
 				parseErrors = &ErrorContainer{
-					ErrorCount: 1,
+					ErrorCount:    1,
 					ErrorMessages: []ErrorMessage{{Message: err.Error()}},
 				}
 			}
@@ -255,7 +255,7 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 			recurrences, err := strconv.Atoi(matches[1])
 			if err != nil {
 				if errors != nil {
-					errors.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid recurrence count")
+					errors.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid recurrence count")
 				}
 				return nil, nil, nil, 0, fmt.Errorf("invalid recurrence count")
 			}
@@ -274,7 +274,7 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 					var parseErrors *ErrorContainer
 					if err != nil {
 						parseErrors = &ErrorContainer{
-							ErrorCount: 1,
+							ErrorCount:    1,
 							ErrorMessages: []ErrorMessage{{Message: err.Error()}},
 						}
 					}
@@ -303,7 +303,7 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 
 			// If we get here, the format is not supported
 			if errors != nil {
-				errors.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Invalid recurring interval format")
+				errors.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Invalid recurring interval format")
 			}
 			return nil, nil, nil, 0, fmt.Errorf("invalid recurring interval format")
 		}
@@ -325,7 +325,7 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 					var parseErrors *ErrorContainer
 					if err != nil {
 						parseErrors = &ErrorContainer{
-							ErrorCount: 1,
+							ErrorCount:    1,
 							ErrorMessages: []ErrorMessage{{Message: err.Error()}},
 						}
 					}
@@ -354,14 +354,14 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 
 			// If we get here, the format is not supported
 			if errors != nil {
-				errors.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Invalid infinite recurring interval format")
+				errors.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Invalid infinite recurring interval format")
 			}
 			return nil, nil, nil, 0, fmt.Errorf("invalid infinite recurring interval format")
 		}
 	}
 
 	if errors != nil {
-		errors.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Unrecognized interval format")
+		errors.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Unrecognized interval format")
 	}
 	return nil, nil, nil, 0, fmt.Errorf("unrecognized interval format")
 }
@@ -370,7 +370,7 @@ func Strtointerval(s string, errors *ErrorContainer) (*Time, *Time, *RelTime, in
 func parseISODuration(duration string, errors *ErrorContainer) (*RelTime, error) {
 	if !strings.HasPrefix(duration, "P") {
 		if errors != nil {
-			errors.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Duration must start with 'P'")
+			errors.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Duration must start with 'P'")
 		}
 		return nil, fmt.Errorf("duration must start with 'P'")
 	}
@@ -386,7 +386,7 @@ func parseISODuration(duration string, errors *ErrorContainer) (*RelTime, error)
 		parts := strings.Split(duration, "T")
 		if len(parts) != 2 {
 			if errors != nil {
-				errors.addError(TIMELIB_ERROR_UNEXPECTED_DATA, "Invalid duration format")
+				errors.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Invalid duration format")
 			}
 			return nil, fmt.Errorf("invalid duration format")
 		}
@@ -402,7 +402,7 @@ func parseISODuration(duration string, errors *ErrorContainer) (*RelTime, error)
 			years, err := strconv.ParseInt(matches[1], 10, 64)
 			if err != nil {
 				if errors != nil {
-					errors.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid year value")
+					errors.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid year value")
 				}
 				return nil, fmt.Errorf("invalid year value")
 			}
@@ -415,7 +415,7 @@ func parseISODuration(duration string, errors *ErrorContainer) (*RelTime, error)
 			months, err := strconv.ParseInt(matches[1], 10, 64)
 			if err != nil {
 				if errors != nil {
-					errors.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid month value")
+					errors.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid month value")
 				}
 				return nil, fmt.Errorf("invalid month value")
 			}
@@ -428,7 +428,7 @@ func parseISODuration(duration string, errors *ErrorContainer) (*RelTime, error)
 			weeks, err := strconv.ParseInt(matches[1], 10, 64)
 			if err != nil {
 				if errors != nil {
-					errors.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid week value")
+					errors.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid week value")
 				}
 				return nil, fmt.Errorf("invalid week value")
 			}
@@ -441,7 +441,7 @@ func parseISODuration(duration string, errors *ErrorContainer) (*RelTime, error)
 			days, err := strconv.ParseInt(matches[1], 10, 64)
 			if err != nil {
 				if errors != nil {
-					errors.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid day value")
+					errors.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid day value")
 				}
 				return nil, fmt.Errorf("invalid day value")
 			}
@@ -457,7 +457,7 @@ func parseISODuration(duration string, errors *ErrorContainer) (*RelTime, error)
 			hours, err := strconv.ParseInt(matches[1], 10, 64)
 			if err != nil {
 				if errors != nil {
-					errors.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid hour value")
+					errors.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid hour value")
 				}
 				return nil, fmt.Errorf("invalid hour value")
 			}
@@ -470,7 +470,7 @@ func parseISODuration(duration string, errors *ErrorContainer) (*RelTime, error)
 			minutes, err := strconv.ParseInt(matches[1], 10, 64)
 			if err != nil {
 				if errors != nil {
-					errors.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid minute value")
+					errors.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid minute value")
 				}
 				return nil, fmt.Errorf("invalid minute value")
 			}
@@ -483,7 +483,7 @@ func parseISODuration(duration string, errors *ErrorContainer) (*RelTime, error)
 			seconds, err := strconv.ParseInt(matches[1], 10, 64)
 			if err != nil {
 				if errors != nil {
-					errors.addError(TIMELIB_ERROR_NUMBER_OUT_OF_RANGE, "Invalid second value")
+					errors.addError(TIMELIB_ERR_NUMBER_OUT_OF_RANGE, "Invalid second value")
 				}
 				return nil, fmt.Errorf("invalid second value")
 			}

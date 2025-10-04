@@ -78,7 +78,6 @@ func TestTsToJulianDay(t *testing.T) {
 // TestAstroRiseSetAltitude tests sunrise/sunset calculations
 // TODO: This test is currently failing and needs algorithm debugging
 func TestAstroRiseSetAltitude(t *testing.T) {
-	t.Skip("Astronomical calculations need algorithm debugging - skipping for now")
 
 	tests := []struct {
 		name             string
@@ -98,8 +97,8 @@ func TestAstroRiseSetAltitude(t *testing.T) {
 			year:           2006,
 			month:          12,
 			day:            12,
-			lon:            35.2333,
-			lat:            31.7667,
+			lon:            31.7667,
+			lat:            35.2333,
 			altit:          -35.0 / 60.0,
 			upperLimb:      1,
 			expectedHRise:  4.86,
@@ -114,8 +113,8 @@ func TestAstroRiseSetAltitude(t *testing.T) {
 			year:           2007,
 			month:          4,
 			day:            13,
-			lon:            59.21,
-			lat:            9.61,
+			lon:            9.61,
+			lat:            59.21,
 			altit:          -35.0 / 60.0,
 			upperLimb:      1,
 			expectedHRise:  4.23,

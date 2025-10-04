@@ -38,20 +38,20 @@ func TestTimezoneIDFromAbbr_Empty(t *testing.T) {
 }
 
 func TestTimezoneIDFromAbbr_CEST(t *testing.T) {
-	// Test CEST - currently returns empty string as the function is not fully implemented
+	// Test CEST - should resolve to timezone IDs from the abbreviation table
 	id := timelib.TimezoneIDFromAbbr("cest", 10800, 1)
-	if id != "" {
-		t.Errorf("Expected empty string for CEST (not fully implemented), got %s", id)
+	if id != "Europe/Kaliningrad" {
+		t.Errorf("Expected Europe/Kaliningrad for CEST with offset 10800, got %s", id)
 	}
 
 	id = timelib.TimezoneIDFromAbbr("cest", 7200, 1)
-	if id != "" {
-		t.Errorf("Expected empty string for CEST (not fully implemented), got %s", id)
+	if id != "Europe/Berlin" {
+		t.Errorf("Expected Europe/Berlin for CEST with offset 7200, got %s", id)
 	}
 
 	id = timelib.TimezoneIDFromAbbr("cest", 7200, 0)
-	if id != "" {
-		t.Errorf("Expected empty string for CEST (not fully implemented), got %s", id)
+	if id != "Europe/Berlin" {
+		t.Errorf("Expected Europe/Berlin for CEST with offset 7200, got %s", id)
 	}
 }
 

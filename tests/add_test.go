@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -345,19 +344,4 @@ func TestAddBasic(t *testing.T) {
 	if result.Y != 2010 || result.M != 1 || result.D != 2 {
 		t.Errorf("Expected 2010-01-02, got %04d-%02d-%02d", result.Y, result.M, result.D)
 	}
-}
-
-// Test to show what functions are available
-func TestAddDebug(t *testing.T) {
-	t.Skip("Debug test - shows current state")
-
-	tFrom, _ := timelib.StrToTime("2010-11-06 18:38:28", nil)
-	errorsContainer := &timelib.ErrorContainer{}
-	_, _, interval, _, _ := timelib.Strtointerval("P0Y0M0DT5H31M52S", errorsContainer)
-
-	fmt.Printf("From: %04d-%02d-%02d %02d:%02d:%02d\n", tFrom.Y, tFrom.M, tFrom.D, tFrom.H, tFrom.I, tFrom.S)
-	fmt.Printf("Interval: Y=%d M=%d D=%d H=%d I=%d S=%d\n", interval.Y, interval.M, interval.D, interval.H, interval.I, interval.S)
-
-	result := tFrom.AddWall(interval)
-	fmt.Printf("Result: %04d-%02d-%02d %02d:%02d:%02d\n", result.Y, result.M, result.D, result.H, result.I, result.S)
 }

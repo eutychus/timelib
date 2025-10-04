@@ -2,7 +2,6 @@ package timelib
 
 import (
 	"fmt"
-	"strings"
 )
 
 // TimezoneIDIsValid checks if timezone ID is valid
@@ -284,14 +283,20 @@ func TimezoneIDFromAbbr(abbr string, gmtoffset int64, isDst int) string {
 		return ""
 	}
 
-	// Handle UTC/GMT case-insensitively
-	lowerAbbr := strings.ToLower(abbr)
-	if lowerAbbr == "utc" || lowerAbbr == "gmt" {
-		return "UTC"
+	// Use the complete timezone abbreviation lookup table
+	entry := LookupTimezoneAbbr(abbr, int32(gmtoffset), isDst)
+	if entry != nil {
+		// For military timezone abbreviations with empty TzID,
+		// return UTC for "Z", otherwise empty string
+		if entry.TzID == "" {
+			if entry.Abbr == "z" && entry.OffsetSec == 0 {
+				return "UTC"
+			}
+			// Other military timezones don't have specific IDs
+			return ""
+		}
+		return entry.TzID
 	}
-
-	// This would use the timezone mapping data from timezonemap.h and fallbackmap.h
-	// For now, return empty string to indicate no match found
 	return ""
 }
 

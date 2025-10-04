@@ -1,7 +1,5 @@
 package timelib
 
-import "fmt"
-
 // ParseDateString parses a date/time string using the re2go-generated parser.
 // This is the main entry point for date parsing.
 func ParseDateString(str string, tzdb *TzDB, tzWrapper TzGetWrapper) (*Time, *ErrorContainer, error) {
@@ -48,12 +46,18 @@ func ParseDateString(str string, tzdb *TzDB, tzWrapper TzGetWrapper) (*Time, *Er
 		}
 	}
 
+	// Initialize time to midnight if date is set but time is not (matching C FillHoles behavior)
+	// This is from parse_date.re lines 2675-2679
+	if s.time.HaveDate && !s.time.HaveTime {
+		s.time.H = 0
+		s.time.I = 0
+		s.time.S = 0
+		s.time.US = 0
+	}
+
 	// Initialize time fields to 0 if any time component was set (matching C behavior)
 	// This is from parse_date.re lines 2615-2628
-	// DEBUG
-	fmt.Printf("DEBUG: Before init: H=%d I=%d S=%d US=%d\n", s.time.H, s.time.I, s.time.S, s.time.US)
 	if s.time.H != TIMELIB_UNSET || s.time.I != TIMELIB_UNSET || s.time.S != TIMELIB_UNSET || s.time.US != TIMELIB_UNSET {
-		fmt.Printf("DEBUG: Initializing time fields\n")
 		if s.time.H == TIMELIB_UNSET {
 			s.time.H = 0
 		}

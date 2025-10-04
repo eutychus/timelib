@@ -478,10 +478,9 @@ func doAdjustTimezone(tz *Time, tzi *TzInfo) {
 
 		tz.IsLocaltime = true
 
-		inTransition = (
-			actualTransitionTime != INT64_MIN &&
-				((tz.Sse - int64(actualOffset)) >= (actualTransitionTime + int64(currentOffset-actualOffset))) &&
-				((tz.Sse - int64(actualOffset)) < actualTransitionTime))
+		inTransition = (actualTransitionTime != INT64_MIN &&
+			((tz.Sse - int64(actualOffset)) >= (actualTransitionTime + int64(currentOffset-actualOffset))) &&
+			((tz.Sse - int64(actualOffset)) < actualTransitionTime))
 
 		if currentOffset != actualOffset && !inTransition {
 			adjustment = -int64(actualOffset)
@@ -670,7 +669,7 @@ func doAdjustForWeekday(t *Time) {
 
 	// Adjust difference based on whether we're going forward or backward
 	if (t.Relative.D < 0 && difference < 0) ||
-	   (t.Relative.D >= 0 && difference <= -int64(t.Relative.WeekdayBehavior)) {
+		(t.Relative.D >= 0 && difference <= -int64(t.Relative.WeekdayBehavior)) {
 		difference += 7
 	}
 
@@ -861,7 +860,6 @@ func (t *Time) Unixtime2local(ts int64) {
 				t.Sse = ts
 				t.Dst = gmtOffset.IsDst
 				t.Z = gmtOffset.Offset
-				t.TzInfo = t.TzInfo
 				t.TzAbbr = gmtOffset.Abbr
 				t.ZoneType = TIMELIB_ZONETYPE_ID
 				// Mark as localtime with zone info set (C code at unixtime2tm.c:159-160)

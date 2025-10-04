@@ -10,7 +10,7 @@ func TestEnumerateTimezones(t *testing.T) {
 	// Test timezone enumeration functionality
 	tzdb := timelib.BuiltinDB()
 	if tzdb == nil {
-		t.Skip("Built-in timezone database not available")
+		t.Error("Built-in timezone database not available")
 	}
 
 	// Get timezone identifiers list
@@ -54,7 +54,7 @@ func TestEnumerateTimezonesBasic(t *testing.T) {
 	// Test basic timezone database functionality
 	tzdb := timelib.BuiltinDB()
 	if tzdb == nil {
-		t.Skip("Built-in timezone database not available")
+		t.Error("Built-in timezone database not available")
 	}
 
 	// Verify basic structure

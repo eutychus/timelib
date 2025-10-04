@@ -105,3 +105,16 @@ func FindTimezone(name string) *TzDBIndexEntry {
 
 	return nil
 }
+
+// FindTimezoneByAbbr looks up a timezone by abbreviation, with optional GMT offset
+// If gmtOffset is -1, it uses the first match found
+func FindTimezoneByAbbr(abbr string, gmtOffset int32, isDST int) *TzDBIndexEntry {
+	// First try to resolve the abbreviation to a timezone ID
+	tzID := TimezoneIDFromAbbr(abbr, int64(gmtOffset), isDST)
+	if tzID == "" {
+		return nil
+	}
+
+	// Then look up the timezone by ID
+	return FindTimezone(tzID)
+}

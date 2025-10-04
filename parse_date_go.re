@@ -206,6 +206,7 @@ var timelibMonthLookup = []LookupTable{
 	{"february", 0, 2},
 	{"march", 0, 3},
 	{"april", 0, 4},
+	{"may", 0, 5},
 	{"june", 0, 6},
 	{"july", 0, 7},
 	{"august", 0, 8},
@@ -240,6 +241,7 @@ func addWarning(s *Scanner, errorCode int, errorMsg string) {
 	message := allocErrorMessage(&s.errors.WarningMessages, &s.errors.WarningCount)
 	message.ErrorCode = errorCode
 	if s.tok != nil {
+		// Calculate position safely using byte pointer arithmetic
 		message.Position = int(uintptr(unsafe.Pointer(s.tok)) - uintptr(unsafe.Pointer(&s.str[0])))
 		message.Character = *s.tok
 	} else {
@@ -253,6 +255,7 @@ func addError(s *Scanner, errorCode int, errorMsg string) {
 	message := allocErrorMessage(&s.errors.ErrorMessages, &s.errors.ErrorCount)
 	message.ErrorCode = errorCode
 	if s.tok != nil {
+		// Calculate position safely using byte pointer arithmetic
 		message.Position = int(uintptr(unsafe.Pointer(s.tok)) - uintptr(unsafe.Pointer(&s.str[0])))
 		message.Character = *s.tok
 	} else {
@@ -352,11 +355,16 @@ func timelibString(s *Scanner) string {
 	if s.tok == nil || s.cur == nil {
 		return ""
 	}
+
+	// Calculate positions safely using byte pointer arithmetic
 	tokPos := int(uintptr(unsafe.Pointer(s.tok)) - uintptr(unsafe.Pointer(&s.str[0])))
 	curPos := int(uintptr(unsafe.Pointer(s.cur)) - uintptr(unsafe.Pointer(&s.str[0])))
+
+	// Additional bounds checking
 	if tokPos < 0 || curPos > len(s.str) || tokPos > curPos {
 		return ""
 	}
+
 	return string(s.str[tokPos:curPos])
 }
 
@@ -707,6 +715,21 @@ func timelibSetRelative(ptr *string, amount int64, behavior int, s *Scanner, tim
 }
 
 func abbrSearch(word string, gmtoffset int32, isdst int) *TzLookupTable {
+	// Convert to uppercase for lookup since the abbreviation table uses uppercase
+	upperWord := strings.ToUpper(word)
+	
+	// Use the comprehensive timezone abbreviation lookup
+	abbr := LookupTimezoneAbbr(upperWord, gmtoffset, isdst)
+	if abbr != nil {
+		return &TzLookupTable{
+			Name:       abbr.TzID,
+			Type:       abbr.IsDST,
+			GmtOffset:  float32(abbr.OffsetSec),
+			FullTzName: word, // Use original case from input, not lowercase from table
+		}
+	}
+	
+	// Fallback to UTC/GMT special case
 	if strings.EqualFold("utc", word) || strings.EqualFold("gmt", word) {
 		return &timelibTimezoneUTC[0]
 	}
@@ -734,7 +757,7 @@ func timelibLookupAbbr(ptr *string, dst *int, tzAbbr *string, found *int) int32 
 	}
 
 	word := begin[:len(begin)-len(*ptr)]
-	*tzAbbr = word
+	*tzAbbr = strings.ToUpper(word)
 
 	if len(word) < MAX_ABBR_LEN {
 		tp := abbrSearch(word, -1, 0)
@@ -965,8 +988,31 @@ func processYear(y *int64, length int) {
 func timelibDaynrFromWeeknr(iyear, iweek, idow int64) int64 {
 	var dow, doy int64
 
+	// Calculate the day of week for January 1st of the given year
 	dow = (dayOfWeek(iyear, 1, 1) + 6) % 7
-	doy = -dow + (iweek * 7) + idow
+	
+	// Calculate the day of year for the given ISO week and day
+	doy = -dow + (iweek * 7) + idow - 7
+	
+	// Handle year boundaries - if doy is negative or too large, adjust the year
+	if doy <= 0 {
+		// Date is in previous year
+		return doy
+	} else if doy > 365 {
+		// Check if it's a leap year and adjust accordingly
+		if (iyear%4 == 0 && iyear%100 != 0) || (iyear%400 == 0) {
+			if doy > 366 {
+				// Date is in next year
+				return doy - 366
+			}
+		} else {
+			if doy > 365 {
+				// Date is in next year
+				return doy - 365
+			}
+		}
+	}
+	
 	return doy
 }
 
@@ -1093,7 +1139,9 @@ iso8601long =  't'? hour24 [:.] minute [:.] second frac;
 iso8601normtz =  't'? hour24 [:.] minute [:.] secondlz space? (tzcorrection | tz);
 
 gnunocolon       = 't'? hour24lz minutelz;
+gnunocolontz     = hour24lz minutelz space? (tzcorrection | tz);
 iso8601nocolon   = 't'? hour24lz minutelz secondlz;
+iso8601nocolontz = hour24lz minutelz secondlz space? (tzcorrection | tz);
 
 americanshort    = month "/" day;
 american         = month "/" day "/" year;
@@ -1459,6 +1507,28 @@ weekdayof        = (reltextnumber|reltexttext) space (dayfulls|dayfull|dayabbr) 
 		return TIMELIB_GNU_NOCOLON
 	}
 
+	gnunocolontz
+	{
+		str = timelibString(s)
+		ptr = str
+		if !s.time.HaveTime {
+			s.time.H = timelibGetNr(&ptr, 2)
+			s.time.I = timelibGetNr(&ptr, 2)
+			s.time.S = 0
+			s.time.HaveTime = true
+			if len(ptr) > 0 && ptr[0] != '\x00' {
+				tzNotFound := 0
+				s.time.Z = timelibParseZone(&ptr, &s.time.Dst, s.time, &tzNotFound, s.tzdb, tzGetWrapper)
+				if tzNotFound != 0 {
+					addError(s, TIMELIB_ERR_TZID_NOT_FOUND, "The timezone could not be found in the database")
+				}
+			}
+		} else {
+			s.time.Y = timelibGetNr(&ptr, 4)
+		}
+		return TIMELIB_GNU_NOCOLON_TZ
+	}
+
 	iso8601nocolon
 	{
 		str = timelibString(s)
@@ -1480,6 +1550,29 @@ weekdayof        = (reltextnumber|reltexttext) space (dayfulls|dayfull|dayabbr) 
 			}
 		}
 		return TIMELIB_ISO_NOCOLON
+	}
+
+	iso8601nocolontz
+	{
+		str = timelibString(s)
+		ptr = str
+		if s.time.HaveTime {
+			addError(s, TIMELIB_ERR_DOUBLE_TIME, "Double time specification")
+			return TIMELIB_ERROR
+		}
+		s.time.HaveTime = true
+		s.time.H = timelibGetNr(&ptr, 2)
+		s.time.I = timelibGetNr(&ptr, 2)
+		s.time.S = timelibGetNr(&ptr, 2)
+
+		if len(ptr) > 0 && ptr[0] != '\x00' {
+			tzNotFound := 0
+			s.time.Z = timelibParseZone(&ptr, &s.time.Dst, s.time, &tzNotFound, s.tzdb, tzGetWrapper)
+			if tzNotFound != 0 {
+				addError(s, TIMELIB_ERR_TZID_NOT_FOUND, "The timezone could not be found in the database")
+			}
+		}
+		return TIMELIB_ISO_NOCOLON_TZ
 	}
 
 	americanshort | american
@@ -1665,6 +1758,7 @@ weekdayof        = (reltextnumber|reltexttext) space (dayfulls|dayfull|dayabbr) 
 		processYear(&s.time.Y, length)
 		return TIMELIB_DATE_NO_DAY
 	}
+
 
 	datetextual | datenoyear
 	{
@@ -2098,8 +2192,6 @@ weekdayof        = (reltextnumber|reltexttext) space (dayfulls|dayfull|dayabbr) 
 		goto std
 	}
 */
-	// Unreachable - all paths goto std or return
-	return EOI
 }
 
 /*!max:re2c */

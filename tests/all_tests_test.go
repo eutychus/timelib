@@ -13,7 +13,7 @@ func TestAllTestsSetup(t *testing.T) {
 	// Test built-in database
 	tzdb := timelib.BuiltinDB()
 	if tzdb == nil {
-		t.Skip("Built-in timezone database not available")
+		t.Error("Built-in timezone database not available")
 	}
 
 	// Test that we can create a basic timezone info structure
@@ -37,7 +37,7 @@ func TestTimezoneDatabaseInitialization(t *testing.T) {
 	// Test timezone database initialization similar to the C++ test runner
 	tzdb := timelib.BuiltinDB()
 	if tzdb == nil {
-		t.Skip("Built-in timezone database not available")
+		t.Error("Built-in timezone database not available")
 	}
 
 	// Verify basic structure

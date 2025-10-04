@@ -74,12 +74,10 @@ func TestTimezoneSameType2Type2Same1(t *testing.T) {
 	t2, err2 := timelib.StrToTime("2021-11-05 11:24:07 CET", timelib.BuiltinDB())
 
 	if err1 != nil || t1 == nil {
-		t.Skipf("Parser doesn't support timezone abbreviations yet: %v", err1)
-		return
+		t.Fatalf("Failed to parse time with CET: %v", err1)
 	}
 	if err2 != nil || t2 == nil {
-		t.Skipf("Parser doesn't support timezone abbreviations yet: %v", err2)
-		return
+		t.Fatalf("Failed to parse time with CET: %v", err2)
 	}
 
 	defer timelib.TimeDtor(t1)
@@ -103,12 +101,10 @@ func TestTimezoneSameType2Type2Same2(t *testing.T) {
 	t2, err2 := timelib.StrToTime("2021-11-05 11:24:07 CET", timelib.BuiltinDB())
 
 	if err1 != nil || t1 == nil {
-		t.Skipf("Parser doesn't support timezone abbreviations yet: %v", err1)
-		return
+		t.Fatalf("Failed to parse time with BST: %v", err1)
 	}
 	if err2 != nil || t2 == nil {
-		t.Skipf("Parser doesn't support timezone abbreviations yet: %v", err2)
-		return
+		t.Fatalf("Failed to parse time with CET: %v", err2)
 	}
 
 	defer timelib.TimeDtor(t1)
@@ -132,12 +128,10 @@ func TestTimezoneSameType2Type2Same3(t *testing.T) {
 	t2, err2 := timelib.StrToTime("2021-11-05 11:24:07 EST", timelib.BuiltinDB())
 
 	if err1 != nil || t1 == nil {
-		t.Skipf("Parser doesn't support timezone abbreviations yet: %v", err1)
-		return
+		t.Fatalf("Failed to parse time with CDT: %v", err1)
 	}
 	if err2 != nil || t2 == nil {
-		t.Skipf("Parser doesn't support timezone abbreviations yet: %v", err2)
-		return
+		t.Fatalf("Failed to parse time with EST: %v", err2)
 	}
 
 	defer timelib.TimeDtor(t1)

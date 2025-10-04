@@ -83,7 +83,7 @@ func TestParseTzUSSamoa(t *testing.T) {
 	var error int
 	tzi, err := timelib.ParseTzfile("US/Samoa", timelib.BuiltinDB(), &error)
 	if err != nil {
-		t.Skipf("ParseTzfile failed: %v", err)
+		t.Errorf("ParseTzfile failed: %v", err)
 	}
 
 	if tzi == nil {
@@ -350,7 +350,7 @@ func TestParseTzCorruptTransitions02(t *testing.T) {
 	testDir := "files"
 	testDB, err := timelib.Zoneinfo(testDir)
 	if err != nil {
-		t.Skipf("Test directory not found: %v", err)
+		t.Errorf("Test directory not found: %v", err)
 	}
 	defer func() {
 		if testDB != nil {
