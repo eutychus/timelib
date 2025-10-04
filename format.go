@@ -29,9 +29,7 @@ func ParseFromFormatWithMap(format, input string, tzdb *TzDB, tzWrapper func(str
 	result, parseErrors := ParseFromFormatWithConfig(format, input, formatConfig)
 	if parseErrors != nil && parseErrors.ErrorCount > 0 {
 		// Copy errors from parseErrors to our errors container
-		for _, errMsg := range parseErrors.ErrorMessages {
-			errors.ErrorMessages = append(errors.ErrorMessages, errMsg)
-		}
+		errors.ErrorMessages = append(errors.ErrorMessages, parseErrors.ErrorMessages...)
 		errors.ErrorCount += parseErrors.ErrorCount
 		return nil, errors
 	}

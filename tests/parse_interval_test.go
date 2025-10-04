@@ -92,10 +92,7 @@ func TestParseIntervalErrorHandling(t *testing.T) {
 			t.Logf("  Period: %+v", period)
 			t.Logf("  Recurrences: %d", recurrences)
 			t.Logf("  Error: %v", err)
-
-			if errors != nil {
-				t.Logf("  Errors: %d warnings, %d errors", errors.WarningCount, errors.ErrorCount)
-			}
+			t.Logf("  Errors: %d warnings, %d errors", errors.WarningCount, errors.ErrorCount)
 		})
 	}
 }

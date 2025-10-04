@@ -71,7 +71,7 @@ func TestConvertNegativeDecimalToHMS(t *testing.T) {
 }
 
 func TestConvertNegativeZeroDecimalToHMS(t *testing.T) {
-	d := -0.0
+	d := 0.0
 	hour, min, sec := timelib.DecimalHourToHMS(d)
 
 	if hour != 0 || min != 0 || sec != 0 {
