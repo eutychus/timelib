@@ -7,7 +7,7 @@ import (
 
 // TestParseTzfileNewYorkSlim tests parsing a slim timezone file
 func TestParseTzfileNewYorkSlim(t *testing.T) {
-	path := filepath.Join("..", "tests", "c", "files", "New_York_Slim")
+	path := filepath.Join("tests", "files", "New_York_Slim")
 
 	var errorCode int
 	tzi, err := ParseTzfileFromFile(path, &errorCode)
@@ -41,7 +41,7 @@ func TestParseTzfileNewYorkSlim(t *testing.T) {
 
 // TestParseTzfileNewYorkFat tests parsing a fat timezone file
 func TestParseTzfileNewYorkFat(t *testing.T) {
-	path := filepath.Join("..", "tests", "c", "files", "New_York_Fat")
+	path := filepath.Join("tests", "files", "New_York_Fat")
 
 	var errorCode int
 	tzi, err := ParseTzfileFromFile(path, &errorCode)
@@ -65,7 +65,7 @@ func TestParseTzfileNewYorkFat(t *testing.T) {
 
 // TestParseTzfileNonContinuous tests error handling for corrupt files
 func TestParseTzfileNonContinuous(t *testing.T) {
-	path := filepath.Join("..", "tests", "c", "files", "NonContinuous")
+	path := filepath.Join("tests", "files", "NonContinuous")
 
 	var errorCode int
 	tzi, err := ParseTzfileFromFile(path, &errorCode)
@@ -90,13 +90,13 @@ func TestParseTzfileNonContinuous(t *testing.T) {
 // TestParsePosixString tests POSIX TZ string parsing
 func TestParsePosixString(t *testing.T) {
 	tests := []struct {
-		name          string
-		posix         string
-		expectStd     string
-		expectDst     string
-		expectStdOff  int64
-		expectDstOff  int64
-		expectError   bool
+		name         string
+		posix        string
+		expectStd    string
+		expectDst    string
+		expectStdOff int64
+		expectDstOff int64
+		expectError  bool
 	}{
 		{
 			name:         "EST5EDT",
@@ -160,7 +160,7 @@ func TestParsePosixString(t *testing.T) {
 
 // TestGetOffsetInfo tests offset calculation
 func TestGetOffsetInfo(t *testing.T) {
-	path := filepath.Join("..", "tests", "c", "files", "New_York_Slim")
+	path := filepath.Join("tests", "files", "New_York_Slim")
 
 	var errorCode int
 	tzi, err := ParseTzfileFromFile(path, &errorCode)
@@ -197,7 +197,7 @@ func TestGetOffsetInfo(t *testing.T) {
 
 // TestZoneinfoDir tests loading timezone database from directory
 func TestZoneinfoDir(t *testing.T) {
-	dir := filepath.Join("..", "tests", "c", "files")
+	dir := filepath.Join("tests", "files")
 
 	tzdb, err := ZoneinfoDir(dir)
 	if err != nil {
@@ -226,7 +226,7 @@ func TestZoneinfoDir(t *testing.T) {
 
 // TestTimezoneValidation tests timezone ID validation
 func TestTimezoneValidation(t *testing.T) {
-	dir := filepath.Join("..", "tests", "c", "files")
+	dir := filepath.Join("tests", "files")
 	tzdb, err := ZoneinfoDir(dir)
 	if err != nil {
 		t.Fatalf("Failed to load timezone directory: %v", err)
