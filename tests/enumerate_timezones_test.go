@@ -58,12 +58,14 @@ func TestEnumerateTimezonesBasic(t *testing.T) {
 	}
 
 	// Verify basic structure
-	if tzdb.Version == "" {
-		t.Log("Timezone database version is empty")
-	}
+	if tzdb != nil {
+		if tzdb.Version == "" {
+			t.Log("Timezone database version is empty")
+		}
 
-	if tzdb.IndexSize < 0 {
-		t.Error("Timezone database index size should not be negative")
+		if tzdb.IndexSize < 0 {
+			t.Error("Timezone database index size should not be negative")
+		}
 	}
 
 	// Test that we can call the function without errors

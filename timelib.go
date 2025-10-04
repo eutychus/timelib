@@ -551,7 +551,10 @@ func HMSToSeconds(h, m, s int64) int64 {
 func DateToInt(d *Time) (int64, error) {
 	ts := d.Sse
 
-	if ts < -9223372036854775808 || ts > 9223372036854775807 {
+	// Defensive programming: validate the timestamp is within int64 range
+	// Note: This check is theoretically redundant since int64 values are inherently bounded,
+	// but it serves as a safety measure and documents the expected range.
+	if ts < math.MinInt64 || ts > math.MaxInt64 {
 		return 0, errors.New("timestamp out of range")
 	}
 

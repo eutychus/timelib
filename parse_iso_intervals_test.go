@@ -87,12 +87,15 @@ func TestParseIsoIntervalPeriod(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			begin, end, period, recur, errors := ParseIsoInterval(tt.input)
 
-			if (errors != nil && errors.ErrorCount > 0) != tt.wantErr {
-				t.Errorf("ParseIsoInterval() error count = %d, wantErr %v", errors.ErrorCount, tt.wantErr)
-				if errors != nil && errors.ErrorCount > 0 {
+			hasErrors := errors != nil && errors.ErrorCount > 0
+			if hasErrors != tt.wantErr {
+				if hasErrors {
+					t.Errorf("ParseIsoInterval() error count = %d, wantErr %v", errors.ErrorCount, tt.wantErr)
 					for _, e := range errors.ErrorMessages {
 						t.Logf("  Error: %s at position %d", e.Message, e.Position)
 					}
+				} else {
+					t.Errorf("ParseIsoInterval() returned no errors, wantErr %v", tt.wantErr)
 				}
 				return
 			}
@@ -164,12 +167,15 @@ func TestParseIsoIntervalDates(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			begin, end, period, recur, errors := ParseIsoInterval(tt.input)
 
-			if (errors != nil && errors.ErrorCount > 0) != tt.wantErr {
-				t.Errorf("ParseIsoInterval() error count = %d, wantErr %v", errors.ErrorCount, tt.wantErr)
-				if errors != nil && errors.ErrorCount > 0 {
+			hasErrors := errors != nil && errors.ErrorCount > 0
+			if hasErrors != tt.wantErr {
+				if hasErrors {
+					t.Errorf("ParseIsoInterval() error count = %d, wantErr %v", errors.ErrorCount, tt.wantErr)
 					for _, e := range errors.ErrorMessages {
 						t.Logf("  Error: %s at position %d", e.Message, e.Position)
 					}
+				} else {
+					t.Errorf("ParseIsoInterval() returned no errors, wantErr %v", tt.wantErr)
 				}
 				return
 			}
@@ -204,12 +210,15 @@ func TestParseIsoIntervalRecurrences(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			begin, end, period, recur, errors := ParseIsoInterval(tt.input)
 
-			if (errors != nil && errors.ErrorCount > 0) != tt.wantErr {
-				t.Errorf("ParseIsoInterval() error count = %d, wantErr %v", errors.ErrorCount, tt.wantErr)
-				if errors != nil && errors.ErrorCount > 0 {
+			hasErrors := errors != nil && errors.ErrorCount > 0
+			if hasErrors != tt.wantErr {
+				if hasErrors {
+					t.Errorf("ParseIsoInterval() error count = %d, wantErr %v", errors.ErrorCount, tt.wantErr)
 					for _, e := range errors.ErrorMessages {
 						t.Logf("  Error: %s at position %d", e.Message, e.Position)
 					}
+				} else {
+					t.Errorf("ParseIsoInterval() returned no errors, wantErr %v", tt.wantErr)
 				}
 				return
 			}
@@ -262,12 +271,15 @@ func TestParseIsoIntervalCombinedRep(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			begin, end, period, recur, errors := ParseIsoInterval(tt.input)
 
-			if (errors != nil && errors.ErrorCount > 0) != tt.wantErr {
-				t.Errorf("ParseIsoInterval() error count = %d, wantErr %v", errors.ErrorCount, tt.wantErr)
-				if errors != nil && errors.ErrorCount > 0 {
+			hasErrors := errors != nil && errors.ErrorCount > 0
+			if hasErrors != tt.wantErr {
+				if hasErrors {
+					t.Errorf("ParseIsoInterval() error count = %d, wantErr %v", errors.ErrorCount, tt.wantErr)
 					for _, e := range errors.ErrorMessages {
 						t.Logf("  Error: %s at position %d", e.Message, e.Position)
 					}
+				} else {
+					t.Errorf("ParseIsoInterval() returned no errors, wantErr %v", tt.wantErr)
 				}
 				return
 			}
