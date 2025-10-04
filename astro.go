@@ -33,12 +33,13 @@ const (
 )
 
 // Helper functions for degree-based trigonometry
-func sind(x float64) float64  { return math.Sin(x * DEGRAD) }
-func cosd(x float64) float64  { return math.Cos(x * DEGRAD) }
-func tand(x float64) float64  { return math.Tan(x * DEGRAD) }
-func atand(x float64) float64 { return RADEG * math.Atan(x) }
-func asind(x float64) float64 { return RADEG * math.Asin(x) }
-func acosd(x float64) float64 { return RADEG * math.Acos(x) }
+func sind(x float64) float64 { return math.Sin(x * DEGRAD) }
+func cosd(x float64) float64 { return math.Cos(x * DEGRAD) }
+
+// func tand(x float64) float64  { return math.Tan(x * DEGRAD) }  // Unused - commented out
+// func atand(x float64) float64 { return RADEG * math.Atan(x) }  // Unused - commented out
+// func asind(x float64) float64 { return RADEG * math.Asin(x) }  // Unused - commented out
+func acosd(x float64) float64     { return RADEG * math.Acos(x) }
 func atan2d(y, x float64) float64 { return RADEG * math.Atan2(y, x) }
 
 // astroRevolution reduces any angle to within 0..360 degrees
@@ -59,7 +60,7 @@ func gmst0(d float64) float64 {
 	// 0.9856002585 is the number of degrees traversed by the Sun
 	// each day. Thus we get GMST at 0h UT by computing
 	// GMST = M + w + 180 at 0h UT
-	sidtim0 := astroRevolution((180.0 + 356.0470 + 282.9404) + (0.9856002585+4.70935E-5)*d)
+	sidtim0 := astroRevolution((180.0 + 356.0470 + 282.9404) + (0.9856002585+4.70935e-5)*d)
 	return sidtim0
 }
 
@@ -71,10 +72,10 @@ func sunpos(d float64) (lon, r float64) {
 	M := astroRevolution(356.0470 + 0.9856002585*d)
 
 	// Compute mean anomaly of the Sun
-	w := 282.9404 + 4.70935E-5*d
+	w := 282.9404 + 4.70935e-5*d
 
 	// Compute the Sun's ecliptic longitude and distance
-	e := 0.016709 - 1.151E-9*d
+	e := 0.016709 - 1.151e-9*d
 
 	// Eccentric anomaly
 	E := M + e*RADEG*sind(M)*(1.0+e*cosd(M))
@@ -107,7 +108,7 @@ func sunRaDec(d float64) (ra, dec, r float64) {
 	y := r * sind(lon)
 
 	// Compute obliquity of ecliptic (inclination of Earth's axis)
-	obl_ecl := 23.4393 - 3.563E-7*d
+	obl_ecl := 23.4393 - 3.563e-7*d
 
 	// Convert to equatorial rectangular coordinates - x is unchanged
 	z := y * sind(obl_ecl)
@@ -121,26 +122,28 @@ func sunRaDec(d float64) (ra, dec, r float64) {
 }
 
 // daysSince2000Jan0 computes the number of days since 2000 Jan 0.0
-func daysSince2000Jan0(y, m, d int64) int64 {
-	return 367*y - (7*(y+((m+9)/12)))/4 + (275*m)/9 + d - 730530
-}
+// func daysSince2000Jan0(y, m, d int64) int64 {  // Unused - commented out
+// 	return 367*y - (7*(y+((m+9)/12)))/4 + (275*m)/9 + d - 730530
+// }
 
 // AstroRiseSetAltitude computes rise, set and transit times for celestial objects
 //
 // Parameters:
-//   t: Time structure with the date to compute for
-//   lon: Longitude in degrees (East positive, West negative)
-//   lat: Latitude in degrees (North positive, South negative)
-//   altit: Altitude of object in degrees (negative for below horizon)
-//          Use -35.0/60.0 for Sun's upper limb touching horizon
-//   upper_limb: 1 to compute rise/set for upper limb, 0 for center
+//
+//	t: Time structure with the date to compute for
+//	lon: Longitude in degrees (East positive, West negative)
+//	lat: Latitude in degrees (North positive, South negative)
+//	altit: Altitude of object in degrees (negative for below horizon)
+//	       Use -35.0/60.0 for Sun's upper limb touching horizon
+//	upper_limb: 1 to compute rise/set for upper limb, 0 for center
 //
 // Returns:
-//   hRise: Hour of rise (decimal hours, local time)
-//   hSet: Hour of set (decimal hours, local time)
-//   tsRise: Unix timestamp of rise
-//   tsSet: Unix timestamp of set
-//   tsTransit: Unix timestamp of transit (highest point)
+//
+//	hRise: Hour of rise (decimal hours, local time)
+//	hSet: Hour of set (decimal hours, local time)
+//	tsRise: Unix timestamp of rise
+//	tsSet: Unix timestamp of set
+//	tsTransit: Unix timestamp of transit (highest point)
 func AstroRiseSetAltitude(t *Time, lon, lat, altit float64, upperLimb int) (hRise, hSet float64, tsRise, tsSet, tsTransit int64) {
 	// Create UTC time at 00:00 of the given day
 	tUtc := &Time{
