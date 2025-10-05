@@ -102,14 +102,124 @@ func ParseFromFormat(format, input string) (*Time, *ErrorContainer) {
 	return ParseFromFormatWithConfig(format, input, defaultConfig)
 }
 
+// ParseFromFormatWithPrefix parses input according to format using % as prefix character
+// This matches the C version's test_parse_with_prefix behavior
+func ParseFromFormatWithPrefix(format, input string) (*Time, *ErrorContainer) {
+	// Use default format configuration with % prefix
+	configWithPrefix := &FormatConfig{
+		FormatMap: []FormatSpecifier{
+			{'Y', TIMELIB_FORMAT_YEAR_FOUR_DIGIT},
+			{'y', TIMELIB_FORMAT_YEAR_TWO_DIGIT},
+			{'m', TIMELIB_FORMAT_MONTH_TWO_DIGIT_PADDED},
+			{'n', TIMELIB_FORMAT_MONTH_TWO_DIGIT},
+			{'d', TIMELIB_FORMAT_DAY_TWO_DIGIT_PADDED},
+			{'j', TIMELIB_FORMAT_DAY_TWO_DIGIT},
+			{'H', TIMELIB_FORMAT_HOUR_TWO_DIGIT_24_MAX},
+			{'h', TIMELIB_FORMAT_HOUR_TWO_DIGIT_12_MAX_PADDED},
+			{'g', TIMELIB_FORMAT_HOUR_TWO_DIGIT_12_MAX},
+			{'G', TIMELIB_FORMAT_HOUR_TWO_DIGIT_24_MAX_PADDED},
+			{'i', TIMELIB_FORMAT_MINUTE_TWO_DIGIT},
+			{'s', TIMELIB_FORMAT_SECOND_TWO_DIGIT},
+			{'u', TIMELIB_FORMAT_MICROSECOND_SIX_DIGIT},
+			{'e', TIMELIB_FORMAT_TIMEZONE_OFFSET},
+			{'P', TIMELIB_FORMAT_TIMEZONE_OFFSET},
+			{'p', TIMELIB_FORMAT_TIMEZONE_OFFSET},
+			{'T', TIMELIB_FORMAT_TIMEZONE_OFFSET},
+			{'O', TIMELIB_FORMAT_TIMEZONE_OFFSET},
+			{'Z', TIMELIB_FORMAT_TIMEZONE_OFFSET_MINUTES},
+			{'F', TIMELIB_FORMAT_TEXTUAL_MONTH_FULL},
+			{'M', TIMELIB_FORMAT_TEXTUAL_MONTH_3_LETTER},
+			{'D', TIMELIB_FORMAT_TEXTUAL_DAY_3_LETTER},
+			{'l', TIMELIB_FORMAT_TEXTUAL_DAY_FULL},
+			{'a', TIMELIB_FORMAT_MERIDIAN},
+			{'A', TIMELIB_FORMAT_MERIDIAN},
+			{'z', TIMELIB_FORMAT_DAY_OF_YEAR},
+			{'U', TIMELIB_FORMAT_EPOCH_SECONDS},
+			{' ', TIMELIB_FORMAT_WHITESPACE},
+			{'\\', TIMELIB_FORMAT_ESCAPE},
+			{'+', TIMELIB_FORMAT_ALLOW_EXTRA_CHARACTERS},
+			{'#', TIMELIB_FORMAT_ANY_SEPARATOR},
+			{'?', TIMELIB_FORMAT_RANDOM_CHAR},
+			{'!', TIMELIB_FORMAT_RESET_ALL},
+			{'|', TIMELIB_FORMAT_RESET_ALL_WHEN_NOT_SET},
+			{'*', TIMELIB_FORMAT_SKIP_TO_SEPARATOR},
+			{'B', TIMELIB_FORMAT_YEAR_ISO},
+			{'b', TIMELIB_FORMAT_DAY_OF_WEEK_ISO},
+			{'V', TIMELIB_FORMAT_WEEK_OF_YEAR_ISO},
+			{'v', TIMELIB_FORMAT_MILLISECOND_THREE_DIGIT},
+			{'S', TIMELIB_FORMAT_DAY_SUFFIX},
+			{':', TIMELIB_FORMAT_SEPARATOR},
+			{'/', TIMELIB_FORMAT_SEPARATOR},
+			{'.', TIMELIB_FORMAT_SEPARATOR},
+			{',', TIMELIB_FORMAT_SEPARATOR},
+			{'-', TIMELIB_FORMAT_SEPARATOR},
+			{'(', TIMELIB_FORMAT_SEPARATOR},
+			{')', TIMELIB_FORMAT_SEPARATOR},
+			{';', TIMELIB_FORMAT_SEPARATOR},
+		},
+		PrefixChar: '%',
+	}
+	return ParseFromFormatWithConfig(format, input, configWithPrefix)
+}
+
 // Parse performs the format parsing
 func (p *FormatParser) Parse() *Time {
 	p.position = 0
 	p.formatPos = 0
+	prefixFound := false
 
 	for p.formatPos < len(p.format) {
 		formatChar := rune(p.format[p.formatPos])
 
+		// Handle prefix character if configured
+		if p.config.PrefixChar != 0 {
+			// Check if this is a prefix character or a literal match
+			if !prefixFound && formatChar != rune(p.config.PrefixChar) {
+				// No prefix found yet, this should be a literal character
+				if !p.matchCharacter(formatChar) {
+					p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Literal character mismatch")
+					return p.time
+				}
+				p.formatPos++
+				p.position++
+				continue
+			}
+
+			if formatChar == rune(p.config.PrefixChar) {
+				// Found prefix character
+				if prefixFound {
+					// Sequential prefix characters - second one is escaped/literal
+					if !p.matchCharacter(formatChar) {
+						p.addError(TIMELIB_ERR_UNEXPECTED_DATA, "Expected prefix character as literal")
+						return p.time
+					}
+					p.position++
+					p.formatPos++
+					prefixFound = false
+					continue
+				}
+				prefixFound = true
+				p.formatPos++
+				continue
+			}
+
+			// If we get here with prefixFound=true, the next character is a format specifier
+			if prefixFound {
+				spec := p.findFormatSpecifier(formatChar)
+				if spec == nil {
+					p.addError(TIMELIB_ERR_INVALID_SPECIFIER, fmt.Sprintf("Invalid format specifier after prefix: %c", formatChar))
+					return p.time
+				}
+				if !p.parseFormatSpecifier(spec) {
+					return p.time
+				}
+				p.formatPos++
+				prefixFound = false
+				continue
+			}
+		}
+
+		// No prefix character configured - original behavior
 		// Handle escape character
 		if formatChar == '\\' {
 			if p.formatPos+1 < len(p.format) {

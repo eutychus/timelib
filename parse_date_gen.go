@@ -1002,34 +1002,22 @@ func processYear(y *int64, length int) {
 }
 
 func timelibDaynrFromWeeknr(iyear, iweek, idow int64) int64 {
-	var dow, doy int64
+	var dow, day int64
 
-	// Calculate the day of week for January 1st of the given year
-	dow = (dayOfWeek(iyear, 1, 1) + 6) % 7
+	// Use the correct DayOfWeek function from timelib.go
+	// This matches the C implementation: timelib_daynr_from_weeknr
+	dow = DayOfWeek(iyear, 1, 1)
 	
-	// Calculate the day of year for the given ISO week and day
-	doy = -dow + (iweek * 7) + idow - 7
-	
-	// Handle year boundaries - if doy is negative or too large, adjust the year
-	if doy <= 0 {
-		// Date is in previous year
-		return doy
-	} else if doy > 365 {
-		// Check if it's a leap year and adjust accordingly
-		if (iyear%4 == 0 && iyear%100 != 0) || (iyear%400 == 0) {
-			if doy > 366 {
-				// Date is in next year
-				return doy - 366
-			}
-		} else {
-			if doy > 365 {
-				// Date is in next year
-				return doy - 365
-			}
-		}
+	// Calculate offset for day 1 of week 1
+	// ISO 8601: Week 1 is the week containing the first Thursday of the year
+	if dow > 4 {
+		day = 0 - (dow - 7)
+	} else {
+		day = 0 - dow
 	}
-	
-	return doy
+
+	// Add weeks and days
+	return day + ((iweek - 1) * 7) + idow
 }
 
 func dayOfWeek(y, m, d int64) int64 {
