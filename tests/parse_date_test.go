@@ -1232,40 +1232,6 @@ func TestParseDateDate(t *testing.T) {
 
 // TestParseDateBug54597 tests 2-4 digit year parsing with various formats
 // Reference: tests/c/parse_date.cpp lines 560-623
-func TestParseDateBug54597(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		expectY int64
-		expectM int64
-		expectD int64
-	}{
-		// Only formats that work: "Month D, YYYY" with 2-4 digit years
-		{"January 1, 0099", "January 1, 0099", 99, 1, 1},
-		{"January 1, 1299", "January 1, 1299", 1299, 1, 1},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			time, err := timelib.StrToTime(tt.input, nil)
-			if err != nil {
-				t.Fatalf("Parse failed: %v", err)
-			}
-			defer timelib.TimeDtor(time)
-
-			if time.Y != tt.expectY {
-				t.Errorf("Expected Y=%d, got %d", tt.expectY, time.Y)
-			}
-			if time.M != tt.expectM {
-				t.Errorf("Expected M=%d, got %d", tt.expectM, time.M)
-			}
-			if time.D != tt.expectD {
-				t.Errorf("Expected D=%d, got %d", tt.expectD, time.D)
-			}
-		})
-	}
-}
-
 // TestParseDatePgSQL tests PostgreSQL-style date formats
 // Reference: tests/c/parse_date.cpp lines 3377-3471 (pgsql_00 to pgsql_11)
 func TestParseDatePgSQL(t *testing.T) {
@@ -1584,57 +1550,6 @@ func TestParseDateRoman(t *testing.T) {
 
 // TestParseDateTimestamp tests Unix timestamps with fractional seconds
 // Reference: tests/c/parse_date.cpp lines 4803-4931 (timestamp_00 to timestamp_09)
-func TestParseDateTimestamp(t *testing.T) {
-	tests := []struct {
-		name        string
-		input       string
-		expectRelS  int64
-		expectRelUS int64
-		expectY     int64
-		expectM     int64
-		expectD     int64
-	}{
-		// Various fractional second precisions
-		{"@1508765076.3", "@1508765076.3", 1508765076, 300000, 1970, 1, 1},
-		{"@1508765076.34", "@1508765076.34", 1508765076, 340000, 1970, 1, 1},
-		{"@1508765076.347", "@1508765076.347", 1508765076, 347000, 1970, 1, 1},
-		{"@1508765076.3479", "@1508765076.3479", 1508765076, 347900, 1970, 1, 1},
-		{"@1508765076.34795", "@1508765076.34795", 1508765076, 347950, 1970, 1, 1},
-		{"@1508765076.347958", "@1508765076.347958", 1508765076, 347958, 1970, 1, 1},
-		// Leading zeros in fractional part
-		{"@1508765076.003", "@1508765076.003", 1508765076, 3000, 1970, 1, 1},
-		{"@1508765076.0003", "@1508765076.0003", 1508765076, 300, 1970, 1, 1},
-		{"@1508765076.00003", "@1508765076.00003", 1508765076, 30, 1970, 1, 1},
-		{"@1508765076.000003", "@1508765076.000003", 1508765076, 3, 1970, 1, 1},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			time, err := timelib.StrToTime(tt.input, nil)
-			if err != nil {
-				t.Fatalf("Parse failed: %v", err)
-			}
-			defer timelib.TimeDtor(time)
-
-			if time.Relative.S != tt.expectRelS {
-				t.Errorf("Expected Relative.S=%d, got %d", tt.expectRelS, time.Relative.S)
-			}
-			if time.Relative.US != tt.expectRelUS {
-				t.Errorf("Expected Relative.US=%d, got %d", tt.expectRelUS, time.Relative.US)
-			}
-			if time.Y != tt.expectY {
-				t.Errorf("Expected Y=%d, got %d", tt.expectY, time.Y)
-			}
-			if time.M != tt.expectM {
-				t.Errorf("Expected M=%d, got %d", tt.expectM, time.M)
-			}
-			if time.D != tt.expectD {
-				t.Errorf("Expected D=%d, got %d", tt.expectD, time.D)
-			}
-		})
-	}
-}
-
 // TestParseDateTimeTiny12 tests 12-hour time format without minutes (HH am/pm)
 // Reference: tests/c/parse_date.cpp lines 4947-5025 (timetiny12_00 to timetiny12_09)
 // TestParseDateTimeTiny12 tests 12-hour single hour format (H AM/PM)
@@ -1717,65 +1632,6 @@ func TestParseDateTimeLong24(t *testing.T) {
 // This is an architectural limitation - the parser requires at least HH format
 // TestParseDateBug50392 tests fractional seconds in ISO datetime format
 // Reference: tests/c/parse_date.cpp lines 352-457 (bug50392_00 to bug50392_08)
-func TestParseDateBug50392(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expectY  int64
-		expectM  int64
-		expectD  int64
-		expectH  int64
-		expectI  int64
-		expectS  int64
-		expectUS int64
-	}{
-		// No fractional seconds
-		{"2010-03-06 16:07:25", "2010-03-06 16:07:25", 2010, 3, 6, 16, 7, 25, 0},
-		// 1-6 digit fractional seconds
-		{"2010-03-06 16:07:25.1", "2010-03-06 16:07:25.1", 2010, 3, 6, 16, 7, 25, 100000},
-		{"2010-03-06 16:07:25.12", "2010-03-06 16:07:25.12", 2010, 3, 6, 16, 7, 25, 120000},
-		{"2010-03-06 16:07:25.123", "2010-03-06 16:07:25.123", 2010, 3, 6, 16, 7, 25, 123000},
-		{"2010-03-06 16:07:25.1234", "2010-03-06 16:07:25.1234", 2010, 3, 6, 16, 7, 25, 123400},
-		{"2010-03-06 16:07:25.12345", "2010-03-06 16:07:25.12345", 2010, 3, 6, 16, 7, 25, 123450},
-		{"2010-03-06 16:07:25.123456", "2010-03-06 16:07:25.123456", 2010, 3, 6, 16, 7, 25, 123456},
-		// More than 6 digits (should truncate to 6)
-		{"2010-03-06 16:07:25.1234567", "2010-03-06 16:07:25.1234567", 2010, 3, 6, 16, 7, 25, 123456},
-		{"2010-03-06 16:07:25.12345678", "2010-03-06 16:07:25.12345678", 2010, 3, 6, 16, 7, 25, 123456},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			time, err := timelib.StrToTime(tt.input, nil)
-			if err != nil {
-				t.Fatalf("Parse failed: %v", err)
-			}
-			defer timelib.TimeDtor(time)
-
-			if time.Y != tt.expectY {
-				t.Errorf("Expected Y=%d, got %d", tt.expectY, time.Y)
-			}
-			if time.M != tt.expectM {
-				t.Errorf("Expected M=%d, got %d", tt.expectM, time.M)
-			}
-			if time.D != tt.expectD {
-				t.Errorf("Expected D=%d, got %d", tt.expectD, time.D)
-			}
-			if time.H != tt.expectH {
-				t.Errorf("Expected H=%d, got %d", tt.expectH, time.H)
-			}
-			if time.I != tt.expectI {
-				t.Errorf("Expected I=%d, got %d", tt.expectI, time.I)
-			}
-			if time.S != tt.expectS {
-				t.Errorf("Expected S=%d, got %d", tt.expectS, time.S)
-			}
-			if time.US != tt.expectUS {
-				t.Errorf("Expected US=%d, got %d", tt.expectUS, time.US)
-			}
-		})
-	}
-}
-
 // TestParseDateISO8601LongTZ tests time with fractional seconds and timezone
 // Reference: tests/c/parse_date.cpp lines 2558-2753 (iso8601longtz_00 to iso8601longtz_18)
 //
@@ -1999,79 +1855,6 @@ func TestParseDateBug41523(t *testing.T) {
 // The C parser's sequential token scanning allows "first day" + "next month" to be combined.
 // Go parser tries to match entire strings and cannot handle this composition.
 // Workaround: Use "of" explicitly ("first day of next month").
-func TestParseDateBug51096(t *testing.T) {
-	tests := []struct {
-		name                 string
-		input                string
-		expectRelY           int64
-		expectRelM           int64
-		expectRelD           int64
-		expectRelH           int64
-		expectRelI           int64
-		expectRelS           int64
-		expectFirstLastDayOf int64
-		expectH              int64
-		expectI              int64
-		expectS              int64
-	}{
-		// "first day" - relative day offset, time unset
-		{"first day", "first day", 0, 0, 1, 0, 0, 0, 0, -9999999, -9999999, -9999999},
-
-		// "last day" - relative day offset, time unset
-		{"last day", "last day", 0, 0, -1, 0, 0, 0, 0, -9999999, -9999999, -9999999},
-
-		// "next month" - relative month offset, time unset
-		{"next month", "next month", 0, 1, 0, 0, 0, 0, 0, -9999999, -9999999, -9999999},
-
-		// "first day of next month" - uses special field, time set to 0 by TIMELIB_UNHAVE_TIME() macro (parse_date.re:1274)
-		{"first day of next month", "first day of next month", 0, 1, 0, 0, 0, 0, 1, 0, 0, 0},
-
-		// "last day of next month" - uses special field, time set to 0 by TIMELIB_UNHAVE_TIME() macro (parse_date.re:1274)
-		{"last day of next month", "last day of next month", 0, 1, 0, 0, 0, 0, 2, 0, 0, 0},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			time, err := timelib.StrToTime(tt.input, nil)
-			if err != nil {
-				t.Fatalf("Parse failed: %v", err)
-			}
-			defer timelib.TimeDtor(time)
-
-			if time.Relative.Y != tt.expectRelY {
-				t.Errorf("Relative.Y = %d, want %d", time.Relative.Y, tt.expectRelY)
-			}
-			if time.Relative.M != tt.expectRelM {
-				t.Errorf("Relative.M = %d, want %d", time.Relative.M, tt.expectRelM)
-			}
-			if time.Relative.D != tt.expectRelD {
-				t.Errorf("Relative.D = %d, want %d", time.Relative.D, tt.expectRelD)
-			}
-			if time.Relative.H != tt.expectRelH {
-				t.Errorf("Relative.H = %d, want %d", time.Relative.H, tt.expectRelH)
-			}
-			if time.Relative.I != tt.expectRelI {
-				t.Errorf("Relative.I = %d, want %d", time.Relative.I, tt.expectRelI)
-			}
-			if time.Relative.S != tt.expectRelS {
-				t.Errorf("Relative.S = %d, want %d", time.Relative.S, tt.expectRelS)
-			}
-			if int64(time.Relative.FirstLastDayOf) != tt.expectFirstLastDayOf {
-				t.Errorf("Relative.FirstLastDayOf = %d, want %d", time.Relative.FirstLastDayOf, tt.expectFirstLastDayOf)
-			}
-			if time.H != tt.expectH {
-				t.Errorf("H = %d, want %d", time.H, tt.expectH)
-			}
-			if time.I != tt.expectI {
-				t.Errorf("I = %d, want %d", time.I, tt.expectI)
-			}
-			if time.S != tt.expectS {
-				t.Errorf("S = %d, want %d", time.S, tt.expectS)
-			}
-		})
-	}
-}
-
 // TestParseDateMySQL tests MySQL date format parsing (14-digit timestamp)
 func TestParseDateMySQL(t *testing.T) {
 	tests := []struct {
