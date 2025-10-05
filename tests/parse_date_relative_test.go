@@ -377,3 +377,142 @@ func TestParseDateRelativeWeekday(t *testing.T) {
 		})
 	}
 }
+
+// TestParseDateRelativeMissing adds the 13 missing relative tests
+// relative_17, relative_37-39, relative_52-60
+func TestParseDateRelativeMissing(t *testing.T) {
+	tests := []struct {
+		name                  string
+		input                 string
+		expectY               int64
+		expectM               int64
+		expectD               int64
+		expectH               int64
+		expectI               int64
+		expectS               int64
+		expectZ               int32
+		expectDst             int
+		checkAbsolute         bool
+		checkTZ               bool
+		expectRelY            int64
+		expectRelM            int64
+		expectRelD            int64
+		expectRelH            int64
+		expectRelI            int64
+		expectRelS            int64
+		checkRelative         bool
+		expectWeekday         int
+		expectWeekdayBehavior int
+		checkWeekday          bool
+		expectSpecialType     int
+		expectSpecialAmount   int64
+		checkSpecial          bool
+	}{
+		// relative_17: parse-only test (no expectations)
+		{"relative_17", "0 second", 0, 0, 0, 0, 0, 0, 0, 0, false, false, 0, 0, 0, 0, 0, 0, false, 0, 0, false, 0, 0, false},
+
+		// relative_37-39: Combined absolute + relative tests
+		{"relative_37", "6 month 2004-05-05 12:15:23 CEST", 2004, 5, 5, 12, 15, 23, 3600, 1, true, true, 0, 6, 0, 0, 0, 0, true, 0, 0, false, 0, 0, false},
+		{"relative_38", "2004-05-05 12:15:23 CEST 6 months", 2004, 5, 5, 12, 15, 23, 3600, 1, true, true, 0, 6, 0, 0, 0, 0, true, 0, 0, false, 0, 0, false},
+		{"relative_39", "2004-05-05 12:15:23 CEST 6 months ago", 2004, 5, 5, 12, 15, 23, 3600, 1, true, true, 0, -6, 0, 0, 0, 0, true, 0, 0, false, 0, 0, false},
+
+		// relative_52-54: Weekday with ordinals
+		{"relative_52", "third saturday", 0, 0, 0, 0, 0, 0, 0, 0, false, false, 0, 0, 14, 0, 0, 0, true, 6, 0, true, 0, 0, false},
+		{"relative_53", "third saturday ago", 0, 0, 0, 0, 0, 0, 0, 0, false, false, 0, 0, -14, 0, 0, 0, true, -6, 0, true, 0, 0, false},
+		{"relative_54", "previous saturday", 0, 0, 0, 0, 0, 0, 0, 0, false, false, 0, 0, -7, 0, 0, 0, true, 6, 0, true, 0, 0, false},
+
+		// relative_55-58: Special weekday tests
+		{"relative_55", "this weekday", 0, 0, 0, 0, 0, 0, 0, 0, false, false, 0, 0, 0, 0, 0, 0, false, 0, 0, false, timelib.TIMELIB_SPECIAL_WEEKDAY, 0, true},
+		{"relative_56", "last weekday", 0, 0, 0, 0, 0, 0, 0, 0, false, false, 0, 0, 0, 0, 0, 0, false, 0, 0, false, timelib.TIMELIB_SPECIAL_WEEKDAY, -1, true},
+		{"relative_57", "next weekday", 0, 0, 0, 0, 0, 0, 0, 0, false, false, 0, 0, 0, 0, 0, 0, false, 0, 0, false, timelib.TIMELIB_SPECIAL_WEEKDAY, 1, true},
+		{"relative_58", "8 weekdays ago", timelib.TIMELIB_UNSET, timelib.TIMELIB_UNSET, timelib.TIMELIB_UNSET, timelib.TIMELIB_UNSET, timelib.TIMELIB_UNSET, timelib.TIMELIB_UNSET, 0, 0, true, false, 0, 0, 0, 0, 0, 0, false, 0, 0, false, timelib.TIMELIB_SPECIAL_WEEKDAY, -8, true},
+
+		// relative_59-60: Combined with weekday_behavior
+		{"relative_59", "Sun, 21 Dec 2003 20:38:33 +0000 GMT", 2003, 12, 21, 20, 38, 33, 0, 0, true, false, 0, 0, 0, 0, 0, 0, false, 0, 1, true, 0, 0, false},
+		{"relative_60", "Mon, 08 May 2006 13:06:44 -0400 +30 days", 2006, 5, 8, 13, 6, 44, -14400, 0, true, true, 0, 0, 30, 0, 0, 0, true, 1, 1, true, 0, 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			time, err := timelib.StrToTime(tt.input, nil)
+			if err != nil {
+				t.Fatalf("Parse failed: %v", err)
+			}
+			defer timelib.TimeDtor(time)
+
+			// Check absolute time fields if specified
+			if tt.checkAbsolute {
+				if time.Y != tt.expectY {
+					t.Errorf("Expected Y=%d, got %d", tt.expectY, time.Y)
+				}
+				if time.M != tt.expectM {
+					t.Errorf("Expected M=%d, got %d", tt.expectM, time.M)
+				}
+				if time.D != tt.expectD {
+					t.Errorf("Expected D=%d, got %d", tt.expectD, time.D)
+				}
+				if time.H != tt.expectH {
+					t.Errorf("Expected H=%d, got %d", tt.expectH, time.H)
+				}
+				if time.I != tt.expectI {
+					t.Errorf("Expected I=%d, got %d", tt.expectI, time.I)
+				}
+				if time.S != tt.expectS {
+					t.Errorf("Expected S=%d, got %d", tt.expectS, time.S)
+				}
+			}
+
+			// Check timezone fields if specified
+			if tt.checkTZ {
+				if time.Z != tt.expectZ {
+					t.Errorf("Expected Z=%d, got %d", tt.expectZ, time.Z)
+				}
+				if time.Dst != tt.expectDst {
+					t.Errorf("Expected Dst=%d, got %d", tt.expectDst, time.Dst)
+				}
+			}
+
+			// Check relative fields if specified
+			if tt.checkRelative {
+				if time.Relative.Y != tt.expectRelY {
+					t.Errorf("Expected Relative.Y=%d, got %d", tt.expectRelY, time.Relative.Y)
+				}
+				if time.Relative.M != tt.expectRelM {
+					t.Errorf("Expected Relative.M=%d, got %d", tt.expectRelM, time.Relative.M)
+				}
+				if time.Relative.D != tt.expectRelD {
+					t.Errorf("Expected Relative.D=%d, got %d", tt.expectRelD, time.Relative.D)
+				}
+				if time.Relative.H != tt.expectRelH {
+					t.Errorf("Expected Relative.H=%d, got %d", tt.expectRelH, time.Relative.H)
+				}
+				if time.Relative.I != tt.expectRelI {
+					t.Errorf("Expected Relative.I=%d, got %d", tt.expectRelI, time.Relative.I)
+				}
+				if time.Relative.S != tt.expectRelS {
+					t.Errorf("Expected Relative.S=%d, got %d", tt.expectRelS, time.Relative.S)
+				}
+			}
+
+			// Check weekday fields if specified
+			if tt.checkWeekday {
+				if time.Relative.Weekday != tt.expectWeekday {
+					t.Errorf("Expected Relative.Weekday=%d, got %d", tt.expectWeekday, time.Relative.Weekday)
+				}
+				if time.Relative.WeekdayBehavior != tt.expectWeekdayBehavior {
+					t.Errorf("Expected Relative.WeekdayBehavior=%d, got %d", tt.expectWeekdayBehavior, time.Relative.WeekdayBehavior)
+				}
+			}
+
+			// Check special fields if specified
+			if tt.checkSpecial {
+				if time.Relative.Special.Type != tt.expectSpecialType {
+					t.Errorf("Expected Relative.Special.Type=%d, got %d", tt.expectSpecialType, time.Relative.Special.Type)
+				}
+				if time.Relative.Special.Amount != tt.expectSpecialAmount {
+					t.Errorf("Expected Relative.Special.Amount=%d, got %d", tt.expectSpecialAmount, time.Relative.Special.Amount)
+				}
+			}
+		})
+	}
+}

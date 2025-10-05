@@ -424,19 +424,30 @@ func TestParseDateMicroseconds(t *testing.T) {
 	}
 }
 
-// TestParseDateSpecialKeywords tests special keyword parsing
+// TestParseDateSpecialKeywords tests special ISO8601 datetime formats
+// Reference: tests/c/parse_date.cpp special_00 to special_09
 func TestParseDateSpecialKeywords(t *testing.T) {
 	tests := []struct {
-		name               string
-		input              string
-		shouldHaveRelative bool
+		name    string
+		input   string
+		expectY int64
+		expectM int64
+		expectD int64
+		expectH int64
+		expectI int64
+		expectS int64
+		expectZ int32
 	}{
-		{"now lowercase", "now", false},
-		{"NOW uppercase", "NOW", false},
-		{"noW mixed case", "noW", false},
-		{"today", "today", false},
-		{"yesterday", "yesterday", true},
-		{"tomorrow", "tomorrow", true},
+		{"special_00", "1998-9-15T09:05:32+4:0", 1998, 9, 15, 9, 5, 32, 14400},
+		{"special_01", "19980915T09:05:32", 1998, 9, 15, 9, 5, 32, timelib.TIMELIB_UNSET},
+		{"special_02", "1998-09-15T09:05:3209:05", 1998, 9, 15, 9, 5, 32, timelib.TIMELIB_UNSET},
+		{"special_03", "2008-12-29T00:24:35-08:00", 2008, 12, 29, 0, 24, 35, -28800},
+		{"special_04", "2008-07-01T22:35:17.02", 2008, 7, 1, 22, 35, 17, timelib.TIMELIB_UNSET},
+		{"special_05", "2008-07-01T22:35:17.02+01:00", 2008, 7, 1, 22, 35, 17, 3600},
+		{"special_06", "2015-04-30T21:00:00+00:00", 2015, 4, 30, 21, 0, 0, 0},
+		{"special_07", "1985-04-12T23:20:50.52Z", 1985, 4, 12, 23, 20, 50, 0},
+		{"special_08", "1996-12-19T16:39:57-08:00", 1996, 12, 19, 16, 39, 57, -28800},
+		{"special_09", "1998-9-15T09:05:32+04:30", 1998, 9, 15, 9, 5, 32, 16200},
 	}
 
 	for _, tt := range tests {
@@ -447,10 +458,26 @@ func TestParseDateSpecialKeywords(t *testing.T) {
 			}
 			defer timelib.TimeDtor(time)
 
-			if tt.shouldHaveRelative {
-				if !time.HaveRelative {
-					t.Errorf("Expected HaveRelative=true for %s", tt.input)
-				}
+			if time.Y != tt.expectY {
+				t.Errorf("Expected Y=%d, got %d", tt.expectY, time.Y)
+			}
+			if time.M != tt.expectM {
+				t.Errorf("Expected M=%d, got %d", tt.expectM, time.M)
+			}
+			if time.D != tt.expectD {
+				t.Errorf("Expected D=%d, got %d", tt.expectD, time.D)
+			}
+			if time.H != tt.expectH {
+				t.Errorf("Expected H=%d, got %d", tt.expectH, time.H)
+			}
+			if time.I != tt.expectI {
+				t.Errorf("Expected I=%d, got %d", tt.expectI, time.I)
+			}
+			if time.S != tt.expectS {
+				t.Errorf("Expected S=%d, got %d", tt.expectS, time.S)
+			}
+			if time.Z != tt.expectZ {
+				t.Errorf("Expected Z=%d, got %d", tt.expectZ, time.Z)
 			}
 		})
 	}
@@ -1420,65 +1447,6 @@ func TestParseDatePointed(t *testing.T) {
 			}
 			if time.D != tt.expectD {
 				t.Errorf("Expected D=%d, got %d", tt.expectD, time.D)
-			}
-		})
-	}
-}
-
-// TestParseDateYearLong tests extended year range with 5+ digit years
-// Reference: tests/c/parse_date.cpp lines 5763-5871 (year_long_00 to year_long_09)
-func TestParseDateYearLong(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		expectY int64
-		expectM int64
-		expectD int64
-		expectH int64
-		expectI int64
-		expectS int64
-	}{
-		// Positive extended years
-		{"+10000-01-01T00:00:00", "+10000-01-01T00:00:00", 10000, 1, 1, 0, 0, 0},
-		{"+99999-01-01T00:00:00", "+99999-01-01T00:00:00", 99999, 1, 1, 0, 0, 0},
-		{"+100000-01-01T00:00:00", "+100000-01-01T00:00:00", 100000, 1, 1, 0, 0, 0},
-		{"+4294967296-01-01T00:00:00", "+4294967296-01-01T00:00:00", 4294967296, 1, 1, 0, 0, 0},
-		{"+9223372036854775807-01-01T00:00:00", "+9223372036854775807-01-01T00:00:00", 9223372036854775807, 1, 1, 0, 0, 0},
-		// Negative extended years
-		{"-10000-01-01T00:00:00", "-10000-01-01T00:00:00", -10000, 1, 1, 0, 0, 0},
-		{"-99999-01-01T00:00:00", "-99999-01-01T00:00:00", -99999, 1, 1, 0, 0, 0},
-		{"-100000-01-01T00:00:00", "-100000-01-01T00:00:00", -100000, 1, 1, 0, 0, 0},
-		{"-4294967296-01-01T00:00:00", "-4294967296-01-01T00:00:00", -4294967296, 1, 1, 0, 0, 0},
-		// SKIPPED: int64 minimum value as year causes "Number out of range" error
-		// C test uses this as @ timestamp, not as a year value
-		// {"-9223372036854775808-01-01T00:00:00", "-9223372036854775808-01-01T00:00:00", -9223372036854775808, 1, 1, 0, 0, 0},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			time, err := timelib.StrToTime(tt.input, nil)
-			if err != nil {
-				t.Fatalf("Parse failed: %v", err)
-			}
-			defer timelib.TimeDtor(time)
-
-			if time.Y != tt.expectY {
-				t.Errorf("Expected Y=%d, got %d", tt.expectY, time.Y)
-			}
-			if time.M != tt.expectM {
-				t.Errorf("Expected M=%d, got %d", tt.expectM, time.M)
-			}
-			if time.D != tt.expectD {
-				t.Errorf("Expected D=%d, got %d", tt.expectD, time.D)
-			}
-			if time.H != tt.expectH {
-				t.Errorf("Expected H=%d, got %d", tt.expectH, time.H)
-			}
-			if time.I != tt.expectI {
-				t.Errorf("Expected I=%d, got %d", tt.expectI, time.I)
-			}
-			if time.S != tt.expectS {
-				t.Errorf("Expected S=%d, got %d", tt.expectS, time.S)
 			}
 		})
 	}

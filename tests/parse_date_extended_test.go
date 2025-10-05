@@ -111,8 +111,8 @@ func TestParseDateISO8601DateExtended(t *testing.T) {
 		expectM int64
 		expectD int64
 	}{
-		// Existing tests have: "1978-12-22", "0078-12-22"
-		// Adding missing cases:
+		{"iso8601date_00", "1978-12-22", 1978, 12, 22},
+		{"iso8601date_01", "0078-12-22", 78, 12, 22},   // 4-digit year with leading zero
 		{"iso8601date_02", "078-12-22", 1978, 12, 22},  // 3-digit year
 		{"iso8601date_03", "78-12-22", 1978, 12, 22},   // 2-digit year
 		{"iso8601date_04", "4-4-25", 2004, 4, 25},      // Single digit year/month/day
@@ -166,7 +166,7 @@ func TestParseDateNoDayExtended(t *testing.T) {
 		expectTZ  string
 	}{
 		{"datenoday_00", "Oct 2003", 2003, 10, 1, false, 0, 0, 0, false, 0, 0, ""},
-		// datenoday_01 is "20 October 2003" - already in existing test
+		{"datenoday_01", "20 October 2003", 2003, 10, 20, false, 0, 0, 0, false, 0, 0, ""},
 		{"datenoday_02", "Oct 03", timelib.TIMELIB_UNSET, 10, 3, false, 0, 0, 0, false, 0, 0, ""},
 		{"datenoday_03", "Oct 2003 2045", 2003, 10, 1, true, 20, 45, 0, false, 0, 0, ""},
 		{"datenoday_04", "Oct 2003 20:45", 2003, 10, 1, true, 20, 45, 0, false, 0, 0, ""},
