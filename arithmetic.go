@@ -4,6 +4,17 @@ import "math"
 
 const INT64_MIN = math.MinInt64
 
+const (
+	daysPerEra        = 146097
+	yearsPerEra       = 400
+	hinnantEpochShift = 719468
+)
+
+var (
+	cDaysInMonth     = [...]int64{31, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+	cDaysInMonthLeap = [...]int64{31, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+)
+
 // Clone creates a deep copy of the Time struct
 func (t *Time) Clone() *Time {
 	clone := &Time{
@@ -299,56 +310,173 @@ func timelib_diff_days(one, two *Time) int {
 // This matches the C implementation's do_range_limit function
 func do_range_limit(start, end, adj int64, a, b *int64) {
 	if *a < start {
-		// Handle underflow - borrow from next higher unit
-		// We calculate 'a + 1' first to avoid int64 overflow
+		// We calculate 'a + 1' first as 'start - *a - 1' causes an int64 overflow if *a is
+		// INT64_MIN. 'start' is 0 in this context, and '0 - INT64_MIN > INT64_MAX'.
 		a_plus_1 := *a + 1
+
 		*b -= (start-a_plus_1)/adj + 1
+
+		// This code adds the extra 'adj' separately, as otherwise this can overflow int64 in
+		// situations where *b is near INT64_MIN.
 		*a += adj * ((start - a_plus_1) / adj)
 		*a += adj
 	}
 	if *a >= end {
-		// Handle overflow - carry to next higher unit
 		*b += *a / adj
 		*a -= adj * (*a / adj)
 	}
 }
 
+func incMonth(y, m *int64) {
+	*m++
+	if *m > 12 {
+		*m -= 12
+		*y++
+	}
+}
+
+func decMonth(y, m *int64) {
+	*m--
+	if *m < 1 {
+		*m += 12
+		*y--
+	}
+}
+
+func daysInMonthTable(leap bool, month int64) int64 {
+	idx := int(month)
+	if idx < 0 {
+		idx = 0
+	}
+	if idx >= len(cDaysInMonth) {
+		idx = len(cDaysInMonth) - 1
+	}
+	if leap {
+		return cDaysInMonthLeap[idx]
+	}
+	return cDaysInMonth[idx]
+}
+
+func doRangeLimitDaysRelative(baseY, baseM, y, m, d *int64, invert bool) {
+	do_range_limit(1, 13, 12, baseM, baseY)
+
+	year := *baseY
+	month := *baseM
+
+	if !invert {
+		for *d < 0 {
+			decMonth(&year, &month)
+			days := daysInMonthTable(IsLeapYear(year), month)
+			*d += days
+			*m--
+		}
+	} else {
+		for *d < 0 {
+			days := daysInMonthTable(IsLeapYear(year), month)
+			*d += days
+			*m--
+			incMonth(&year, &month)
+		}
+	}
+}
+
+func doRangeLimitDays(y, m, d *int64) bool {
+	if *d >= daysPerEra || *d <= -daysPerEra {
+		*y += yearsPerEra * (*d / daysPerEra)
+		*d -= daysPerEra * (*d / daysPerEra)
+	}
+
+	do_range_limit(1, 13, 12, m, y)
+
+	leapYear := IsLeapYear(*y)
+	daysPerMonthCurrentYear := cDaysInMonth
+	if leapYear {
+		daysPerMonthCurrentYear = cDaysInMonthLeap
+	}
+
+	retval := false
+
+	for *d <= 0 && *m > 0 {
+		previousMonth := *m - 1
+		previousYear := *y
+		if previousMonth < 1 {
+			previousMonth += 12
+			previousYear = (*y) - 1
+		}
+		leapPrev := IsLeapYear(previousYear)
+		var daysPrev int64
+		if leapPrev {
+			daysPrev = cDaysInMonthLeap[int(previousMonth)]
+		} else {
+			daysPrev = cDaysInMonth[int(previousMonth)]
+		}
+
+		*d += daysPrev
+		*m--
+		retval = true
+	}
+
+	// Re-evaluate days-per-month for the (potentially) updated current year
+	if IsLeapYear(*y) {
+		daysPerMonthCurrentYear = cDaysInMonthLeap
+	} else {
+		daysPerMonthCurrentYear = cDaysInMonth
+	}
+
+	for *d > 0 && *m <= 12 && *d > daysPerMonthCurrentYear[int(*m)] {
+		*d -= daysPerMonthCurrentYear[int(*m)]
+		*m++
+		retval = true
+	}
+
+	return retval
+}
+
+func magicDateCalc(t *Time) {
+	if t.D < -719498 {
+		return
+	}
+
+	g := t.D + hinnantEpochShift - 1
+	y := (10000*g + 14780) / 3652425
+	ddd := g - ((365 * y) + (y / 4) - (y / 100) + (y / 400))
+	if ddd < 0 {
+		y--
+		ddd = g - ((365 * y) + (y / 4) - (y / 100) + (y / 400))
+	}
+	mi := (100*ddd + 52) / 3060
+	mm := ((mi + 2) % 12) + 1
+	y = y + (mi+2)/12
+	dd := ddd - ((mi*306 + 5) / 10) + 1
+
+	t.Y = y
+	t.M = mm
+	t.D = dd
+}
+
 func timelib_do_normalize(t *Time) {
-	// Use do_range_limit to match C implementation exactly
 	if t.US != TIMELIB_UNSET {
 		do_range_limit(0, 1000000, 1000000, &t.US, &t.S)
 	}
 	if t.S != TIMELIB_UNSET {
 		do_range_limit(0, 60, 60, &t.S, &t.I)
-	}
-	if t.I != TIMELIB_UNSET {
 		do_range_limit(0, 60, 60, &t.I, &t.H)
-	}
-	if t.H != TIMELIB_UNSET {
 		do_range_limit(0, 24, 24, &t.H, &t.D)
 	}
 
-	// Normalize months
 	do_range_limit(1, 13, 12, &t.M, &t.Y)
 
-	// Normalize days and months
-	for t.D > DaysInMonth(t.Y, t.M) {
-		t.D -= DaysInMonth(t.Y, t.M)
-		t.M++
-		if t.M > 12 {
-			t.M = 1
-			t.Y++
+	if t.Y == 1970 && t.M == 1 && t.D != 1 {
+		magicDateCalc(t)
+	}
+
+	for {
+		if !doRangeLimitDays(&t.Y, &t.M, &t.D) {
+			break
 		}
 	}
 
-	for t.D < 1 {
-		t.M--
-		if t.M < 1 {
-			t.M = 12
-			t.Y--
-		}
-		t.D += DaysInMonth(t.Y, t.M)
-	}
+	do_range_limit(1, 13, 12, &t.M, &t.Y)
 }
 
 // timelib_epoch_days_from_time calculates epoch days from time
@@ -392,16 +520,34 @@ func (t *Time) UpdateTS(tzi *TzInfo) {
 	// Adjust for special relative times (late adjustments)
 	doAdjustSpecial(t)
 
-	// Calculate epoch days
+	// Initialize UNSET time fields to 0 before calculation (matching C behavior where fields are 0 by default)
+	h := t.H
+	if h == TIMELIB_UNSET {
+		h = 0
+	}
+	i := t.I
+	if i == TIMELIB_UNSET {
+		i = 0
+	}
+	s := t.S
+	if s == TIMELIB_UNSET {
+		s = 0
+	}
+
+	// Calculate epoch days and SSE
+	// Note: This is done in two steps to avoid overflow (matching C at tm2unixtime.c:473-481)
+	// The C comment explains: "timelib_epoch_days_from_time(time) * SECS_PER_DAY with the lowest
+	// limit of timelib_epoch_days_from_time() is less than the range of an int64_t. This then
+	// overflows. In order to be able to still allow for any time in that day that only halfly
+	// fits in the int64_t range, we add the time element first, which is always positive, and
+	// then twice half the value of the earliest day as expressed as unix timestamp."
 	epochDays := timelib_epoch_days_from_time(t)
 
-	// Calculate seconds since epoch
-	// Split into two parts to avoid overflow
-	seconds := t.H*3600 + t.I*60 + t.S
-	seconds += epochDays * (86400 / 2)
-	seconds += epochDays * (86400 / 2)
-
-	t.Sse = seconds
+	// First add the time of day (always positive)
+	t.Sse = h*3600 + i*60 + s
+	// Then add epoch days in two halves to avoid overflow
+	t.Sse += epochDays * (SECS_PER_DAY / 2)
+	t.Sse += epochDays * (SECS_PER_DAY / 2)
 
 	// Adjust for timezone - this modifies t.Sse
 	doAdjustTimezone(t, tzi)
@@ -727,7 +873,7 @@ func doAdjustSpecial(t *Time) {
 	if t.Relative.HaveSpecialRelative {
 		switch t.Relative.Special.Type {
 		case TIMELIB_SPECIAL_WEEKDAY:
-			// TODO: implement weekday special adjustments
+			doAdjustSpecialWeekday(t)
 		}
 	}
 
@@ -737,14 +883,77 @@ func doAdjustSpecial(t *Time) {
 	t.Relative.Special.Amount = 0
 }
 
+// doAdjustSpecialWeekday handles weekday special adjustments
+// This matches the C function: do_adjust_special_weekday
+func doAdjustSpecialWeekday(t *Time) {
+	count := t.Relative.Special.Amount
+	dow := DayOfWeek(t.Y, t.M, t.D)
+
+	// Add increments of 5 weekdays as a week, leaving the DOW unchanged
+	t.D += (count / 5) * 7
+
+	// Deal with the remainder
+	rem := count % 5
+
+	if count > 0 {
+		if rem == 0 {
+			// Head back to Friday if we stop on the weekend
+			if dow == 0 {
+				t.D -= 2
+			} else if dow == 6 {
+				t.D -= 1
+			}
+		} else if dow == 6 {
+			// We ended up on Saturday, but there's still work to do, so move
+			// to Sunday and continue from there
+			t.D += 1
+		} else if dow+rem > 5 {
+			// We're on a weekday, but we're going past Friday, so skip right
+			// over the weekend
+			t.D += 2
+		}
+	} else {
+		// Completely mirror the forward direction. This also covers the 0
+		// case, since if we start on the weekend, we want to move forward as
+		// if we stopped there while going backwards
+		if rem == 0 {
+			if dow == 6 {
+				t.D += 2
+			} else if dow == 0 {
+				t.D += 1
+			}
+		} else if dow == 0 {
+			t.D -= 1
+		} else if dow+rem < 1 {
+			t.D -= 2
+		}
+	}
+
+	t.D += rem
+}
+
 // doAdjustSpecialEarly handles special relative time adjustments (early)
 func doAdjustSpecialEarly(t *Time) {
 	if t.Relative.HaveSpecialRelative {
 		switch t.Relative.Special.Type {
 		case TIMELIB_SPECIAL_DAY_OF_WEEK_IN_MONTH:
-			// TODO: implement day of week in month adjustments
+			t.D = 1
+			t.M += t.Relative.M
+			t.Relative.M = 0
+		case TIMELIB_SPECIAL_LAST_DAY_OF_WEEK_IN_MONTH:
+			t.D = 1
+			t.M += t.Relative.M + 1
+			t.Relative.M = 0
 		}
 	}
+	switch t.Relative.FirstLastDayOf {
+	case TIMELIB_SPECIAL_FIRST_DAY_OF_MONTH:
+		t.D = 1
+	case TIMELIB_SPECIAL_LAST_DAY_OF_MONTH:
+		t.D = 0
+		t.M++
+	}
+	timelib_do_normalize(t)
 }
 
 // Unixtime2date converts Unix timestamp to date

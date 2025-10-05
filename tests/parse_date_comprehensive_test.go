@@ -1028,6 +1028,13 @@ func TestParseDateNoDay(t *testing.T) {
 			}
 			defer timelib.TimeDtor(time)
 
+			// For date-only strings, call FillHoles to initialize time to midnight
+			if time.HaveDate && !time.HaveTime {
+				now := timelib.TimeCtor()
+				defer timelib.TimeDtor(now)
+				timelib.FillHoles(time, now, 0)
+			}
+
 			if time.Y != tt.expectY {
 				t.Errorf("Expected Y=%d, got %d", tt.expectY, time.Y)
 			}

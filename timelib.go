@@ -5,6 +5,7 @@ package timelib
 import (
 	"errors"
 	"math"
+	"strings"
 	"time"
 )
 
@@ -577,6 +578,13 @@ func SetTimezoneFromAbbr(t *Time, abbr string, utcOffset int64, isDst int) {
 	t.Dst = isDst
 	t.TzAbbr = abbr
 	t.TzInfo = nil
+}
+
+// TzAbbrUpdate updates the timezone abbreviation, converting it to uppercase
+// This matches the C function timelib_time_tz_abbr_update
+func TzAbbrUpdate(t *Time, tzAbbr string) {
+	// Convert each character to uppercase (matching C behavior)
+	t.TzAbbr = strings.ToUpper(tzAbbr)
 }
 
 // SetTimezone attaches timezone information from TzInfo

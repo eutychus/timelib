@@ -188,45 +188,65 @@ func FillHoles(parsed, now *Time, options int) {
 
 	// Fill unset date/time fields with reference time values
 	if parsed.Y == TIMELIB_UNSET {
-		parsed.Y = now.Y
+		if now.Y != TIMELIB_UNSET {
+			parsed.Y = now.Y
+		} else {
+			parsed.Y = 0
+		}
 	}
 	if parsed.M == TIMELIB_UNSET {
-		parsed.M = now.M
+		if now.M != TIMELIB_UNSET {
+			parsed.M = now.M
+		} else {
+			parsed.M = 0
+		}
 	}
 	if parsed.D == TIMELIB_UNSET {
-		parsed.D = now.D
+		if now.D != TIMELIB_UNSET {
+			parsed.D = now.D
+		} else {
+			parsed.D = 0
+		}
 	}
 
-	// Handle time fields
-	if options&TIMELIB_OVERRIDE_TIME == 0 {
-		if parsed.H == TIMELIB_UNSET {
+	// Handle time fields - NOTE: Unlike date fields, time fields are filled
+	// unconditionally from the reference time (matching C behavior at parse_date.re:2692-2694)
+	if parsed.H == TIMELIB_UNSET {
+		if now.H != TIMELIB_UNSET {
 			parsed.H = now.H
-		}
-		if parsed.I == TIMELIB_UNSET {
-			parsed.I = now.I
-		}
-		if parsed.S == TIMELIB_UNSET {
-			parsed.S = now.S
-		}
-	} else {
-		// Override time - set to zeros if not set
-		if parsed.H == TIMELIB_UNSET {
+		} else {
 			parsed.H = 0
 		}
-		if parsed.I == TIMELIB_UNSET {
+	}
+	if parsed.I == TIMELIB_UNSET {
+		if now.I != TIMELIB_UNSET {
+			parsed.I = now.I
+		} else {
 			parsed.I = 0
 		}
-		if parsed.S == TIMELIB_UNSET {
+	}
+	if parsed.S == TIMELIB_UNSET {
+		if now.S != TIMELIB_UNSET {
+			parsed.S = now.S
+		} else {
 			parsed.S = 0
 		}
 	}
 
 	// Handle timezone information
-	if parsed.Z == 0 && now.Z != 0 {
-		parsed.Z = now.Z
+	if parsed.Z == TIMELIB_UNSET {
+		if now.Z != TIMELIB_UNSET {
+			parsed.Z = now.Z
+		} else {
+			parsed.Z = 0
+		}
 	}
-	if parsed.Dst == -1 && now.Dst != -1 {
-		parsed.Dst = now.Dst
+	if parsed.Dst == TIMELIB_UNSET {
+		if now.Dst != TIMELIB_UNSET {
+			parsed.Dst = now.Dst
+		} else {
+			parsed.Dst = 0
+		}
 	}
 	if parsed.TzAbbr == "" && now.TzAbbr != "" {
 		parsed.TzAbbr = now.TzAbbr
@@ -239,6 +259,12 @@ func FillHoles(parsed, now *Time, options int) {
 		} else {
 			parsed.TzInfo = now.TzInfo
 		}
+	}
+
+	// Copy zone_type if parsed doesn't have one (matches C at parse_date.re:2710-2712)
+	if parsed.ZoneType == 0 && now.ZoneType != 0 {
+		parsed.ZoneType = now.ZoneType
+		parsed.IsLocaltime = true
 	}
 }
 
@@ -427,7 +453,7 @@ func (t *Time) AddWall(interval *RelTime) *Time {
 			tempInterval := RelTimeClone(interval)
 
 			// Normalize microseconds into seconds
-			doRangeLimit(0, 1000000, 1000000, &tempInterval.US, &tempInterval.S)
+			do_range_limit(0, 1000000, 1000000, &tempInterval.US, &tempInterval.S)
 
 			// Save base microseconds before UpdateFromSSE (which clears them)
 			baseUS := result.US
@@ -437,6 +463,8 @@ func (t *Time) AddWall(interval *RelTime) *Time {
 			result.US = baseUS + tempInterval.US*bias
 
 			timelib_do_normalize(result)
+			// Mark SSE as not up-to-date so UpdateTS will recalculate from normalized fields
+			result.SseUptodate = false
 			result.UpdateTS(nil)
 		}
 		timelib_do_normalize(result)
@@ -454,19 +482,6 @@ func (t *Time) AddWall(interval *RelTime) *Time {
 // hmsToSeconds converts hours, minutes, seconds to total seconds
 func hmsToSeconds(h, i, s int64) int64 {
 	return (h * 3600) + (i * 60) + s
-}
-
-// doRangeLimit normalizes values within a range
-// Matches C function: do_range_limit from interval.c
-func doRangeLimit(start, end, adj int64, a, b *int64) {
-	if *a < start {
-		*b -= (start - *a - 1) / adj + 1
-		*a += adj * ((start - *a - 1) / adj + 1)
-	}
-	if *a >= end {
-		*b += *a / adj
-		*a -= adj * (*a / adj)
-	}
 }
 
 // SubWall subtracts relative time from base time (wall time version)
@@ -513,30 +528,22 @@ func (t *Time) SubWall(interval *RelTime) *Time {
 		// Handle time components (H/I/S/US)
 		if interval.US == 0 {
 			// Simple case: no microseconds, just adjust SSE
-			// Save base microseconds before UpdateFromSSE (which clears them)
-			baseUS := result.US
-			hmsSeconds := hmsToSeconds(interval.H, interval.I, interval.S)
-			result.Sse -= bias * hmsSeconds
+			result.Sse -= bias * hmsToSeconds(interval.H, interval.I, interval.S)
 			result.UpdateFromSSE()
-			// Restore base microseconds
-			result.US = baseUS
 		} else {
 			// Complex case: have microseconds
 			// Clone the interval and normalize microseconds
 			tempInterval := RelTimeClone(interval)
 
 			// Normalize microseconds into seconds using do_range_limit logic
-			doRangeLimit(0, 1000000, 1000000, &tempInterval.US, &tempInterval.S)
+			do_range_limit(0, 1000000, 1000000, &tempInterval.US, &tempInterval.S)
 
-			// Save base microseconds before UpdateFromSSE (which clears them)
-			baseUS := result.US
 			// Adjust SSE by H/I/S
-			hmsSeconds := hmsToSeconds(tempInterval.H, tempInterval.I, tempInterval.S)
-			result.Sse -= bias * hmsSeconds
+			result.Sse -= bias * hmsToSeconds(tempInterval.H, tempInterval.I, tempInterval.S)
 			result.UpdateFromSSE()
 
-			// Adjust microseconds: subtract interval microseconds from base microseconds
-			result.US = baseUS - tempInterval.US*bias
+			// Adjust microseconds: subtract interval microseconds from result microseconds
+			result.US -= tempInterval.US * bias
 
 			// Normalize the time fields
 			timelib_do_normalize(result)
@@ -776,25 +783,25 @@ func lookupTimezoneAbbr(abbr string) (offset int64, dst int, found bool) {
 	case "EST":
 		return -5 * 3600, 0, true
 	case "EDT":
-		return -4 * 3600, 0, true  // EDT is UTC-4 (total offset, dst flag not added)
+		return -4 * 3600, 0, true // EDT is UTC-4 (total offset, dst flag not added)
 	case "CST":
 		return -6 * 3600, 0, true
 	case "CDT":
-		return -5 * 3600, 0, true  // CDT is UTC-5 (total offset, dst flag not added)
+		return -5 * 3600, 0, true // CDT is UTC-5 (total offset, dst flag not added)
 	case "MST":
 		return -7 * 3600, 0, true
 	case "MDT":
-		return -6 * 3600, 0, true  // MDT is UTC-6 (total offset, dst flag not added)
+		return -6 * 3600, 0, true // MDT is UTC-6 (total offset, dst flag not added)
 	case "PST":
 		return -8 * 3600, 0, true
 	case "PDT":
-		return -7 * 3600, 0, true  // PDT is UTC-7 (total offset, dst flag not added)
+		return -7 * 3600, 0, true // PDT is UTC-7 (total offset, dst flag not added)
 	case "CET":
 		return 1 * 3600, 0, true
 	case "CEST":
-		return 2 * 3600, 0, true   // CEST is UTC+2 (total offset, dst flag not added)
+		return 2 * 3600, 0, true // CEST is UTC+2 (total offset, dst flag not added)
 	case "BST":
-		return 1 * 3600, 0, true   // BST is UTC+1 (total offset, dst flag not added)
+		return 1 * 3600, 0, true // BST is UTC+1 (total offset, dst flag not added)
 	default:
 		// Try to parse as timezone identifier (will be handled by caller)
 		return 0, 0, false

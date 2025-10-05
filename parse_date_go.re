@@ -1492,6 +1492,23 @@ weekdayof        = (reltextnumber|reltexttext) space (dayfulls|dayfull|dayabbr) 
 		return TIMELIB_TIME24_WITH_ZONE
 	}
 
+	gnudateshorter
+	{
+		str = timelibString(s)
+		ptr = str
+		if s.time.HaveDate {
+			addError(s, TIMELIB_ERR_DOUBLE_DATE, "Double date specification")
+			return TIMELIB_ERROR
+		}
+		s.time.HaveDate = true
+		length := 0
+		s.time.Y = timelibGetNrEx(&ptr, 4, &length)
+		s.time.M = timelibGetNr(&ptr, 2)
+		s.time.D = 1
+		processYear(&s.time.Y, length)
+		return TIMELIB_ISO_DATE
+	}
+
 	gnunocolon
 	{
 		str = timelibString(s)
@@ -1638,23 +1655,6 @@ weekdayof        = (reltextnumber|reltexttext) space (dayfulls|dayfull|dayabbr) 
 		s.time.Y = timelibGetSignedNr(s, &ptr, 19)
 		s.time.M = timelibGetNr(&ptr, 2)
 		s.time.D = timelibGetNr(&ptr, 2)
-		return TIMELIB_ISO_DATE
-	}
-
-	gnudateshorter
-	{
-		str = timelibString(s)
-		ptr = str
-		if s.time.HaveDate {
-			addError(s, TIMELIB_ERR_DOUBLE_DATE, "Double date specification")
-			return TIMELIB_ERROR
-		}
-		s.time.HaveDate = true
-		length := 0
-		s.time.Y = timelibGetNrEx(&ptr, 4, &length)
-		s.time.M = timelibGetNr(&ptr, 2)
-		s.time.D = 1
-		processYear(&s.time.Y, length)
 		return TIMELIB_ISO_DATE
 	}
 

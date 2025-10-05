@@ -6,121 +6,731 @@ import (
 	timelib "github.com/eutychus/timelib"
 )
 
-func TestCreateTimestamp(t *testing.T) {
-	// Test creating timestamp from string with reference time and timezone
-	// This is equivalent to the functionality in tester-create-ts.c
-
-	// Test basic timestamp creation
+// TestCreateTimestampFromString tests creating timestamps from strings with reference times and timezones
+// This is a comprehensive port of the C tests from create_ts_from_string.cpp (all 648 test cases)
+func TestCreateTimestampFromString(t *testing.T) {
 	testCases := []struct {
-		timeString  string
-		reference   string
-		timezone    string
-		description string
+		name     string
+		expected int64
+		timeStr  string
+		refStr   string
+		tzid     string
 	}{
-		{"2021-04-07", "12:00:00", "UTC", "ISO date with UTC timezone"},
-		{"2021-09-11", "00:00:00", "UTC", "ISO date with UTC timezone"},
-		{"@946728000", "00:00:00", "UTC", "Unix timestamp with UTC timezone"},
+		{name: "bug24910_00", expected: 1076824799, timeStr: "2004-04-07 00:00:00 -2 months +7 days +23 hours +59 minutes +59 seconds", refStr: "", tzid: "America/Chicago"},
+		{name: "bug24910_01", expected: 1076824800, timeStr: "2004-04-07 00:00:00 -2 months +7 days +23 hours +59 minutes +60 seconds", refStr: "", tzid: "America/Chicago"},
+		{name: "bug24910_02", expected: 1076824801, timeStr: "2004-04-07 00:00:00 -2 months +7 days +23 hours +59 minutes +61 seconds", refStr: "", tzid: "America/Chicago"},
+		{name: "bug24910_03", expected: 1079503200, timeStr: "2004-04-07 00:00:00 -21 days", refStr: "", tzid: "America/Chicago"},
+		{name: "bug24910_04", expected: 1080367200, timeStr: "2004-04-07 00:00:00 11 days ago", refStr: "", tzid: "America/Chicago"},
+		{name: "bug24910_05", expected: 1080460800, timeStr: "2004-04-07 00:00:00 -10 day +2 hours", refStr: "", tzid: "America/Chicago"},
+		{name: "bug24910_06", expected: 1081227600, timeStr: "2004-04-07 00:00:00 -1 day", refStr: "", tzid: "America/Chicago"},
+		{name: "bug24910_07", expected: 1081314000, timeStr: "2004-04-07 00:00:00", refStr: "", tzid: "America/Chicago"},
+		{name: "bug24910_08", expected: 1081317600, timeStr: "2004-04-07 00:00:00 +1 hour", refStr: "", tzid: "America/Chicago"},
+		{name: "bug24910_09", expected: 1081321200, timeStr: "2004-04-07 00:00:00 +2 hour", refStr: "", tzid: "America/Chicago"},
+		{name: "bug24910_10", expected: 1081400400, timeStr: "2004-04-07 00:00:00 +1 day", refStr: "", tzid: "America/Chicago"},
+		{name: "bug24910_11", expected: 1081400400, timeStr: "2004-04-07 00:00:00 1 day", refStr: "", tzid: "America/Chicago"},
+		{name: "bug24910_12", expected: 1083128400, timeStr: "2004-04-07 00:00:00 +21 days", refStr: "", tzid: "America/Chicago"},
+		{name: "bug24910_13", expected: 1080432000, timeStr: "2004-03-28 00:00:00", refStr: "", tzid: "GMT"},
+		{name: "bug24910_14", expected: 1080428400, timeStr: "2004-03-28 00:00:00", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "bug24910_15", expected: 1080432000, timeStr: "2004-03-28 01:00:00", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "bug24910_16", expected: 1080435540, timeStr: "2004-03-28 01:59:00", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "bug24910_17", expected: 1080435600, timeStr: "2004-03-28 02:00:00", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "bug24910_18", expected: 1080435660, timeStr: "2004-03-28 02:01:00", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "bug24910_19", expected: 1080435600, timeStr: "2004-03-28 03:00:00", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "bug24910_20", expected: 1080435660, timeStr: "2004-03-28 03:01:00", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "bug24910_21", expected: 1080428400, timeStr: "2004-04-07 00:00:00 -10 day", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "bug24910_22", expected: 1080432000, timeStr: "2004-04-07 00:00:00 -10 day +1 hour", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "bug24910_23", expected: 1080435600, timeStr: "2004-04-07 00:00:00 -10 day +2 hours", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "bug24910_24", expected: 1130626800, timeStr: "2005-10-30 01:00:00", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "bug24910_25", expected: 1130634000, timeStr: "2005-10-30 02:00:00", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "bug24910_26", expected: 1130637600, timeStr: "2005-10-30 03:00:00", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "bug24910_27", expected: 1130641200, timeStr: "2005-10-30 04:00:00", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "bug24910_28", expected: 1081288800, timeStr: "2004-04-07 00:00:00", refStr: "", tzid: "Asia/Jerusalem"},
+		{name: "bug24910_29", expected: 1081292400, timeStr: "2004-04-07 00:00:00 +1 hour", refStr: "", tzid: "Asia/Jerusalem"},
+		{name: "bug28024_00", expected: 1072976400, timeStr: "17:00 2004-01-01", refStr: "", tzid: "Europe/London"},
+		{name: "bug30190_00", expected: 946684800, timeStr: "2000-01-01", refStr: "00:00:00 GMT", tzid: ""},
+		{name: "bug30190_01", expected: 946598400, timeStr: "2000-01-00", refStr: "00:00:00 GMT", tzid: ""},
+		{name: "bug30190_02", expected: 943920000, timeStr: "2000-00-00", refStr: "00:00:00 GMT", tzid: ""},
+		{name: "bug30190_03", expected: -62167219200, timeStr: "0000-01-01", refStr: "00:00:00 GMT", tzid: ""},
+		{name: "bug30190_04", expected: -62167305600, timeStr: "0000-01-00", refStr: "00:00:00 GMT", tzid: ""},
+		{name: "bug30190_05", expected: -62169984000, timeStr: "0000-00-00", refStr: "00:00:00 GMT", tzid: ""},
+		{name: "bug30532_00", expected: 1099195200, timeStr: "2004-10-31 +0 hours", refStr: "00:00:00", tzid: "America/New_York"},
+		{name: "bug30532_01", expected: 1099198800, timeStr: "2004-10-31 +1 hours", refStr: "00:00:00", tzid: "America/New_York"},
+		{name: "bug30532_02", expected: 1099206000, timeStr: "2004-10-31 +2 hours", refStr: "00:00:00", tzid: "America/New_York"},
+		{name: "bug30532_03", expected: 1099195200, timeStr: "+0 hours", refStr: "2004-10-31 00:00:00", tzid: "America/New_York"},
+		{name: "bug30532_04", expected: 1099198800, timeStr: "+1 hours", refStr: "2004-10-31 00:00:00", tzid: "America/New_York"},
+		{name: "bug30532_05", expected: 1099206000, timeStr: "+2 hours", refStr: "2004-10-31 00:00:00", tzid: "America/New_York"},
+		{name: "bug32086_00", expected: 1099278000, timeStr: "2004-11-01 00:00", refStr: "", tzid: "America/Sao_Paulo"},
+		{name: "bug32086_01", expected: 1099360800, timeStr: "2004-11-01 23:00", refStr: "", tzid: "America/Sao_Paulo"},
+		{name: "bug32086_02", expected: 1099364400, timeStr: "2004-11-01 00:00 +1 day", refStr: "", tzid: "America/Sao_Paulo"},
+		{name: "bug32086_03", expected: 1099364400, timeStr: "2004-11-02 00:00", refStr: "", tzid: "America/Sao_Paulo"},
+		{name: "bug32086_04", expected: 1099364400, timeStr: "2004-11-02 01:00", refStr: "", tzid: "America/Sao_Paulo"},
+		{name: "bug32086_05", expected: 1108778400, timeStr: "2005-02-19 00:00", refStr: "", tzid: "America/Sao_Paulo"},
+		{name: "bug32086_06", expected: 1108868400, timeStr: "2005-02-19 00:00 +1 day", refStr: "", tzid: "America/Sao_Paulo"},
+		{name: "bug32086_07", expected: 1108868400, timeStr: "2005-02-20 00:00", refStr: "", tzid: "America/Sao_Paulo"},
+		{name: "bug32270_00", expected: -2145888000, timeStr: "01/01/1902 00:00:00", refStr: "", tzid: "America/Los_Angeles"},
+		{name: "bug32270_01", expected: -631123200, timeStr: "01/01/1950 00:00:00", refStr: "", tzid: "America/Los_Angeles"},
+		{name: "bug32270_02", expected: 946713600, timeStr: "Sat 01 Jan 2000 08:00:00 AM GMT", refStr: "", tzid: ""},
+		{name: "bug32270_03", expected: 946713600, timeStr: "01/01/2000 08:00:00 GMT", refStr: "", tzid: ""},
+		{name: "bug32270_04", expected: 946713600, timeStr: "01/01/2000 00:00:00", refStr: "", tzid: "America/Los_Angeles"},
+		{name: "bug32270_05", expected: 946713600, timeStr: "01/01/2000 00:00:00 PST", refStr: "", tzid: "America/Los_Angeles"},
+		{name: "bug32555_00", expected: 1112427000, timeStr: "2005-04-02 02:30", refStr: "", tzid: "America/New_York"},
+		{name: "bug32555_01", expected: 1112427000, timeStr: "2005-04-02 02:30 now", refStr: "", tzid: "America/New_York"},
+		{name: "bug32555_02", expected: 1112418000, timeStr: "2005-04-02 02:30 today", refStr: "", tzid: "America/New_York"},
+		{name: "bug32555_03", expected: 1112504400, timeStr: "2005-04-02 02:30 tomorrow", refStr: "", tzid: "America/New_York"},
+		{name: "bug32588_00", expected: 1112400000, timeStr: "last saturday", refStr: "2005/04/05/08:15:48 GMT", tzid: ""},
+		{name: "bug32588_01", expected: 1112400000, timeStr: "0 secs", refStr: "2005/04/02/00:00:00 GMT", tzid: ""},
+		{name: "bug32588_02", expected: 1112486400, timeStr: "last sunday", refStr: "2005/04/05/08:15:48 GMT", tzid: ""},
+		{name: "bug32588_03", expected: 1112486400, timeStr: "0 secs", refStr: "2005/04/03/00:00:00 GMT", tzid: ""},
+		{name: "bug32588_04", expected: 1112572800, timeStr: "last monday", refStr: "2005/04/05/08:15:48 GMT", tzid: ""},
+		{name: "bug32588_05", expected: 1112572800, timeStr: "0 secs", refStr: "2005/04/04/00:00:00 GMT", tzid: ""},
+		{name: "bug32588_06", expected: 1112688948, timeStr: "0 secs", refStr: "2005/04/05/08:15:48 GMT", tzid: ""},
+		{name: "bug32588_07", expected: 1112659200, timeStr: "0 secs", refStr: "2005/04/05/00:00:00 GMT", tzid: ""},
+		{name: "bug33056_00", expected: 1116406800, timeStr: "20050518t090000Z", refStr: "", tzid: ""},
+		{name: "bug33056_01", expected: 1116407554, timeStr: "20050518t091234Z", refStr: "", tzid: ""},
+		{name: "bug33056_02", expected: 1116443554, timeStr: "20050518t191234Z", refStr: "", tzid: ""},
+		{name: "bug33056_03", expected: 1116403200, timeStr: "20050518t090000", refStr: "", tzid: "Europe/London"},
+		{name: "bug33056_04", expected: 1116403954, timeStr: "20050518t091234", refStr: "", tzid: "Europe/London"},
+		{name: "bug33056_05", expected: 1116439954, timeStr: "20050518t191234", refStr: "", tzid: "Europe/London"},
+		{name: "bug34874_00", expected: 1130284800, timeStr: "", refStr: "2005-10-26 00:00", tzid: "UTC"},
+		{name: "bug34874_01", expected: 1130284800, timeStr: "first wednesday", refStr: "2005-10-19 15:05", tzid: "UTC"},
+		{name: "bug34874_02", expected: 1130284800, timeStr: "next wednesday", refStr: "2005-10-19 15:05", tzid: "UTC"},
+		{name: "bug34874_03", expected: 1129680000, timeStr: "wednesday", refStr: "2005-10-19 15:05", tzid: "UTC"},
+		{name: "bug34874_04", expected: 1129680000, timeStr: "this wednesday", refStr: "2005-10-19 15:05", tzid: "UTC"},
+		{name: "bug34874_05", expected: 1129680000, timeStr: "", refStr: "2005-10-19 00:00", tzid: "UTC"},
+		{name: "bug34874_06", expected: 1129734300, timeStr: "", refStr: "2005-10-19 15:05", tzid: "UTC"},
+		{name: "bug34874_07", expected: 1130198400, timeStr: "tuesday", refStr: "2005-10-19 15:05", tzid: "UTC"},
+		{name: "bug34874_08", expected: 1129680000, timeStr: "wednesday", refStr: "2005-10-19 15:05", tzid: "UTC"},
+		{name: "bug34874_09", expected: 1129766400, timeStr: "thursday", refStr: "2005-10-19 15:05", tzid: "UTC"},
+		{name: "bug37017_00", expected: 1147453201, timeStr: "2006-05-12 13:00:01 America/New_York", refStr: "", tzid: ""},
+		{name: "bug37017_01", expected: 1147453200, timeStr: "2006-05-12 13:00:00 America/New_York", refStr: "", tzid: ""},
+		{name: "bug37017_02", expected: 1147453199, timeStr: "2006-05-12 12:59:59 America/New_York", refStr: "", tzid: ""},
+		{name: "bug37017_03", expected: 1147438799, timeStr: "2006-05-12 12:59:59 GMT", refStr: "", tzid: ""},
+		{name: "bug40290_00", expected: 1170159900, timeStr: "Tue, 30 Jan 2007 12:27:00 +0002", refStr: "", tzid: "Pacific/Auckland"},
+		{name: "bug40290_01", expected: 1170159960, timeStr: "Tue, 30 Jan 2007 12:27:00 +0001", refStr: "", tzid: "Pacific/Auckland"},
+		{name: "bug40290_02", expected: 1170160020, timeStr: "Tue, 30 Jan 2007 12:27:00 +0000", refStr: "", tzid: "Pacific/Auckland"},
+		{name: "bug40290_03", expected: 1170160080, timeStr: "Tue, 30 Jan 2007 12:27:00 -0001", refStr: "", tzid: "Pacific/Auckland"},
+		{name: "bug40290_04", expected: 1170160140, timeStr: "Tue, 30 Jan 2007 12:27:00 -0002", refStr: "", tzid: "Pacific/Auckland"},
+		{name: "bug41709_00", expected: 946684800, timeStr: "01.01.2000", refStr: "00:00:00 GMT", tzid: ""},
+		{name: "bug41709_01", expected: 946598400, timeStr: "00.01.2000", refStr: "00:00:00 GMT", tzid: ""},
+		{name: "bug41709_02", expected: 943920000, timeStr: "00.00.2000", refStr: "00:00:00 GMT", tzid: ""},
+		{name: "bug41709_03", expected: -62167219200, timeStr: "01.01.0000", refStr: "00:00:00 GMT", tzid: ""},
+		{name: "bug41709_04", expected: -62167305600, timeStr: "00.01.0000", refStr: "00:00:00 GMT", tzid: ""},
+		{name: "bug41709_05", expected: -62169984000, timeStr: "00.00.0000", refStr: "00:00:00 GMT", tzid: ""},
+		{name: "bug51934_00", expected: 1272853080, timeStr: "4 sundays ago", refStr: "2010-05-27 19:18", tzid: "America/Los_Angeles"},
+		{name: "bug63470_00", expected: 1435536000, timeStr: "this week", refStr: "2015-07-04 00:00", tzid: "UTC"},
+		{name: "bug63470_01", expected: 1435536000, timeStr: "this week", refStr: "2015-07-05 00:00", tzid: "UTC"},
+		{name: "bug63470_02", expected: 1436140800, timeStr: "this week", refStr: "2015-07-06 00:00", tzid: "UTC"},
+		{name: "bug63470_03", expected: 1436140800, timeStr: "this week", refStr: "2015-07-11 00:00", tzid: "UTC"},
+		{name: "bug63470_04", expected: 1436140800, timeStr: "this week", refStr: "2015-07-12 00:00", tzid: "UTC"},
+		{name: "bug63470_05", expected: 1436745600, timeStr: "this week", refStr: "2015-07-13 00:00", tzid: "UTC"},
+		{name: "bug63470_06", expected: 1209254400, timeStr: "", refStr: "2008-04-27 00:00", tzid: "UTC"},
+		{name: "bug63470_07", expected: 1209254400, timeStr: "this week sunday", refStr: "2008-04-25 00:00", tzid: "UTC"},
+		{name: "bug63470_08", expected: 1208822400, timeStr: "", refStr: "2008-04-22 00:00", tzid: "UTC"},
+		{name: "bug63470_09", expected: 1208822400, timeStr: "this week tuesday", refStr: "2008-04-25 00:00", tzid: "UTC"},
+		{name: "bug63470_10", expected: 1482710400, timeStr: "", refStr: "2016-12-26 00:00", tzid: "UTC"},
+		{name: "bug63470_11", expected: 1482710400, timeStr: "monday this week", refStr: "2017-01-01 00:00", tzid: "UTC"},
+		{name: "bug63470_12", expected: 1483315200, timeStr: "", refStr: "2017-01-02 00:00", tzid: "UTC"},
+		{name: "bug63470_13", expected: 1483315200, timeStr: "monday this week", refStr: "2017-01-02 00:00", tzid: "UTC"},
+		{name: "bug63470_14", expected: 1483315200, timeStr: "monday this week", refStr: "2017-01-03 00:00", tzid: "UTC"},
+		{name: "bug63470_15", expected: 1483315200, timeStr: "monday this week", refStr: "2017-01-04 00:00", tzid: "UTC"},
+		{name: "bug63470_16", expected: 1483315200, timeStr: "monday this week", refStr: "2017-01-05 00:00", tzid: "UTC"},
+		{name: "bug63470_17", expected: 1483315200, timeStr: "monday this week", refStr: "2017-01-06 00:00", tzid: "UTC"},
+		{name: "bug63470_18", expected: 1483315200, timeStr: "monday this week", refStr: "2017-01-07 00:00", tzid: "UTC"},
+		{name: "bug63470_19", expected: 1483315200, timeStr: "monday this week", refStr: "2017-01-08 00:00", tzid: "UTC"},
+		{name: "bug63470_20", expected: 1483920000, timeStr: "", refStr: "2017-01-09 00:00", tzid: "UTC"},
+		{name: "bug63470_21", expected: 1483920000, timeStr: "monday this week", refStr: "2017-01-09 00:00", tzid: "UTC"},
+		{name: "bug63470_22", expected: 1483056000, timeStr: "", refStr: "2016-12-30 00:00", tzid: "UTC"},
+		{name: "bug63470_23", expected: 1483056000, timeStr: "friday this week", refStr: "2017-01-01 00:00", tzid: "UTC"},
+		{name: "bug63470_24", expected: 1483660800, timeStr: "", refStr: "2017-01-06 00:00", tzid: "UTC"},
+		{name: "bug63470_25", expected: 1483660800, timeStr: "friday this week", refStr: "2017-01-02 00:00", tzid: "UTC"},
+		{name: "bug63470_26", expected: 1483660800, timeStr: "friday this week", refStr: "2017-01-03 00:00", tzid: "UTC"},
+		{name: "bug63470_27", expected: 1483660800, timeStr: "friday this week", refStr: "2017-01-04 00:00", tzid: "UTC"},
+		{name: "bug63470_28", expected: 1483660800, timeStr: "friday this week", refStr: "2017-01-05 00:00", tzid: "UTC"},
+		{name: "bug63470_29", expected: 1483660800, timeStr: "friday this week", refStr: "2017-01-06 00:00", tzid: "UTC"},
+		{name: "bug63470_30", expected: 1483660800, timeStr: "friday this week", refStr: "2017-01-07 00:00", tzid: "UTC"},
+		{name: "bug63470_31", expected: 1483660800, timeStr: "friday this week", refStr: "2017-01-08 00:00", tzid: "UTC"},
+		{name: "bug63470_32", expected: 1484265600, timeStr: "", refStr: "2017-01-13 00:00", tzid: "UTC"},
+		{name: "bug63470_33", expected: 1484265600, timeStr: "friday this week", refStr: "2017-01-09 00:00", tzid: "UTC"},
+		{name: "bug63470_34", expected: 1483142400, timeStr: "", refStr: "2016-12-31 00:00", tzid: "UTC"},
+		{name: "bug63470_35", expected: 1483142400, timeStr: "saturday this week", refStr: "2017-01-01 00:00", tzid: "UTC"},
+		{name: "bug63470_36", expected: 1483747200, timeStr: "", refStr: "2017-01-07 00:00", tzid: "UTC"},
+		{name: "bug63470_37", expected: 1483747200, timeStr: "saturday this week", refStr: "2017-01-02 00:00", tzid: "UTC"},
+		{name: "bug63470_38", expected: 1483747200, timeStr: "saturday this week", refStr: "2017-01-03 00:00", tzid: "UTC"},
+		{name: "bug63470_39", expected: 1483747200, timeStr: "saturday this week", refStr: "2017-01-04 00:00", tzid: "UTC"},
+		{name: "bug63470_40", expected: 1483747200, timeStr: "saturday this week", refStr: "2017-01-05 00:00", tzid: "UTC"},
+		{name: "bug63470_41", expected: 1483747200, timeStr: "saturday this week", refStr: "2017-01-06 00:00", tzid: "UTC"},
+		{name: "bug63470_42", expected: 1483747200, timeStr: "saturday this week", refStr: "2017-01-07 00:00", tzid: "UTC"},
+		{name: "bug63470_43", expected: 1483747200, timeStr: "saturday this week", refStr: "2017-01-08 00:00", tzid: "UTC"},
+		{name: "bug63470_44", expected: 1484352000, timeStr: "", refStr: "2017-01-14 00:00", tzid: "UTC"},
+		{name: "bug63470_45", expected: 1484352000, timeStr: "saturday this week", refStr: "2017-01-09 00:00", tzid: "UTC"},
+		{name: "bug63470_46", expected: 1483228800, timeStr: "", refStr: "2017-01-01 00:00", tzid: "UTC"},
+		{name: "bug63470_47", expected: 1483228800, timeStr: "sunday this week", refStr: "2017-01-01 00:00", tzid: "UTC"},
+		{name: "bug63470_48", expected: 1483833600, timeStr: "", refStr: "2017-01-08 00:00", tzid: "UTC"},
+		{name: "bug63470_49", expected: 1483833600, timeStr: "sunday this week", refStr: "2017-01-02 00:00", tzid: "UTC"},
+		{name: "bug63470_50", expected: 1483833600, timeStr: "sunday this week", refStr: "2017-01-03 00:00", tzid: "UTC"},
+		{name: "bug63470_51", expected: 1483833600, timeStr: "sunday this week", refStr: "2017-01-04 00:00", tzid: "UTC"},
+		{name: "bug63470_52", expected: 1483833600, timeStr: "sunday this week", refStr: "2017-01-05 00:00", tzid: "UTC"},
+		{name: "bug63470_53", expected: 1483833600, timeStr: "sunday this week", refStr: "2017-01-06 00:00", tzid: "UTC"},
+		{name: "bug63470_54", expected: 1483833600, timeStr: "sunday this week", refStr: "2017-01-07 00:00", tzid: "UTC"},
+		{name: "bug63470_55", expected: 1483833600, timeStr: "sunday this week", refStr: "2017-01-08 00:00", tzid: "UTC"},
+		{name: "bug63470_56", expected: 1484438400, timeStr: "", refStr: "2017-01-15 00:00", tzid: "UTC"},
+		{name: "bug63470_57", expected: 1484438400, timeStr: "sunday this week", refStr: "2017-01-09 00:00", tzid: "UTC"},
+		{name: "bug73294_00", expected: -122110502400, timeStr: "-1900-06-22", refStr: "", tzid: "UTC"},
+		{name: "bug73294_01", expected: -122615337600, timeStr: "-1916-06-22", refStr: "", tzid: "UTC"},
+		{name: "first_transition_00", expected: -2695022427, timeStr: "1884-08-06 06:39:33", refStr: "", tzid: "America/Los_Angeles"},
+		{name: "first_transition_01", expected: -2190187227, timeStr: "1900-08-06 06:39:33", refStr: "", tzid: "America/Los_Angeles"},
+		{name: "first_transition_02", expected: -2158651227, timeStr: "1901-08-06 06:39:33", refStr: "", tzid: "America/Los_Angeles"},
+		{name: "first_transition_03", expected: -2127115227, timeStr: "1902-08-06 06:39:33", refStr: "", tzid: "America/Los_Angeles"},
+		{name: "first_transition_04", expected: -1637832027, timeStr: "1918-02-06 06:39:33", refStr: "", tzid: "America/Los_Angeles"},
+		{name: "first_transition_05", expected: -1622197227, timeStr: "1918-08-06 06:39:33", refStr: "", tzid: "America/Los_Angeles"},
+		{name: "full_00", expected: 1126396800, timeStr: "9/11", refStr: "2005-09-11 00:00:00", tzid: ""},
+		{name: "full_01", expected: 1126396800, timeStr: "9/11", refStr: "2005-09-11 00:00:00 GMT", tzid: ""},
+		{name: "full_02", expected: 1126396800, timeStr: "9/11", refStr: "2005-09-11 00:00:00", tzid: "GMT"},
+		{name: "full_03", expected: 1126396800, timeStr: "9/11 GMT", refStr: "2005-09-11 00:00:00", tzid: ""},
+		{name: "full_04", expected: 1126393200, timeStr: "9/11", refStr: "2005-09-11 00:00:00 CET", tzid: ""},
+		{name: "full_05", expected: 1126389600, timeStr: "9/11", refStr: "2005-09-11 00:00:00 CEST", tzid: ""},
+		{name: "full_06", expected: 1126393200, timeStr: "9/11 CET", refStr: "2005-09-11 00:00:00", tzid: ""},
+		{name: "full_07", expected: 1126389600, timeStr: "9/11 CEST", refStr: "2005-09-11 00:00:00", tzid: ""},
+		{name: "full_08", expected: 1126389600, timeStr: "9/11", refStr: "2005-09-11 00:00:00", tzid: "Europe/Amsterdam"},
+		{name: "full_09", expected: 1126393200, timeStr: "9/11", refStr: "2005-09-11 00:00:00 CET", tzid: "Europe/Amsterdam"},
+		{name: "full_10", expected: 1126389600, timeStr: "9/11", refStr: "2005-09-11 00:00:00 CEST", tzid: "Europe/Amsterdam"},
+		{name: "full_11", expected: 1105401600, timeStr: "1/11", refStr: "2005-01-11 00:00:00 GMT", tzid: ""},
+		{name: "full_12", expected: 1105398000, timeStr: "1/11", refStr: "2005-01-11 00:00:00 CET", tzid: ""},
+		{name: "full_13", expected: 1105394400, timeStr: "1/11", refStr: "2005-01-11 00:00:00 CEST", tzid: ""},
+		{name: "full_14", expected: 1105398000, timeStr: "1/11", refStr: "2005-01-11 00:00:00", tzid: "Europe/Amsterdam"},
+		{name: "full_15", expected: 1105398000, timeStr: "1/11", refStr: "2005-01-11 00:00:00 CET", tzid: "Europe/Amsterdam"},
+		{name: "full_16", expected: 1105394400, timeStr: "1/11", refStr: "2005-01-11 00:00:00 CEST", tzid: "Europe/Amsterdam"},
+		{name: "full_17", expected: 283132800, timeStr: "1978-12-22", refStr: "00:00:00 GMT", tzid: ""},
+		{name: "full_18", expected: 283147200, timeStr: "1978-12-22", refStr: "00:00:00 EDT", tzid: ""},
+		{name: "full_19", expected: 1113861600, timeStr: "2005-04-19", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "full_20", expected: 1113886800, timeStr: "2005-04-19", refStr: "", tzid: "America/Chicago"},
+		{name: "full_21", expected: 1113883200, timeStr: "2005-04-19", refStr: "", tzid: "America/New_York"},
+		{name: "full_22", expected: 1113883200, timeStr: "2005-04-19", refStr: "00:00:00", tzid: "America/New_York"},
+		{name: "full_23", expected: 1113918120, timeStr: "2005-04-19", refStr: "09:42:00", tzid: "America/New_York"},
+		{name: "last_day_of_00", expected: 1203724800, timeStr: "last saturday of feb 2008", refStr: "2008-05-04 22:28:27", tzid: "UTC"},
+		{name: "last_day_of_01", expected: 1227571200, timeStr: "last tue of 2008-11", refStr: "2008-05-04 22:28:27", tzid: "UTC"},
+		{name: "last_day_of_02", expected: 1222560000, timeStr: "last sunday of sept", refStr: "2008-05-04 22:28:27", tzid: "UTC"},
+		{name: "last_day_of_03", expected: 1212192000, timeStr: "last saturday of this month", refStr: "2008-05-04 22:28:27", tzid: "UTC"},
+		{name: "last_day_of_04", expected: 1208995200, timeStr: "last thursday of last month", refStr: "2008-05-04 22:28:27", tzid: "UTC"},
+		{name: "last_day_of_05", expected: 1222214400, timeStr: "last wed of fourth month", refStr: "2008-05-04 22:28:27", tzid: "UTC"},
+		{name: "last_day_of_06", expected: 1201219200, timeStr: "last friday of next month", refStr: "2007-12-13", tzid: "UTC"},
+		{name: "month_00", expected: 1141410805, timeStr: "march", refStr: "2006-05-03 18:33:25", tzid: "UTC"},
+		{name: "month_01", expected: 1159900405, timeStr: "OCT", refStr: "2006-05-03 18:33:25", tzid: "UTC"},
+		{name: "month_02", expected: 1157308405, timeStr: "September", refStr: "2006-05-03 18:33:25", tzid: "UTC"},
+		{name: "month_03", expected: 1165170805, timeStr: "deCEMber", refStr: "2006-05-03 18:33:25", tzid: "UTC"},
+		{name: "relative_00", expected: 1116457202, timeStr: "+2 sec", refStr: "2005-05-18 23:00 GMT", tzid: "GMT"},
+		{name: "relative_01", expected: 1116457198, timeStr: "2 secs ago", refStr: "2005-05-18 23:00 GMT", tzid: "GMT"},
+		{name: "relative_02", expected: 1116630000, timeStr: "+2 days", refStr: "2005-05-18 23:00 GMT", tzid: "GMT"},
+		{name: "relative_03", expected: 1116630000, timeStr: "", refStr: "2005-05-20 23:00 GMT", tzid: "GMT"},
+		{name: "relative_04", expected: 1116284400, timeStr: "+2 days ago", refStr: "2005-05-18 23:00 GMT", tzid: "GMT"},
+		{name: "relative_05", expected: 1112828400, timeStr: "-3 forthnight", refStr: "2005-05-18 23:00 GMT", tzid: "GMT"},
+		{name: "relative_06", expected: 1112828400, timeStr: "", refStr: "2005-04-06 23:00 GMT", tzid: "GMT"},
+		{name: "relative_07", expected: 1123714800, timeStr: "+12 weeks", refStr: "2005-05-18 23:00 GMT", tzid: "GMT"},
+		{name: "relative_08", expected: 1123714800, timeStr: "", refStr: "2005-08-10 23:00 GMT", tzid: "GMT"},
+		{name: "relative_09", expected: 1128938400, timeStr: "0 secs", refStr: "2005-10-10 12:00", tzid: "Europe/Amsterdam"},
+		{name: "relative_10", expected: 1128942000, timeStr: "0 secs", refStr: "2005-10-10 12:00 CET", tzid: "Europe/Amsterdam"},
+		{name: "relative_11", expected: 1128938400, timeStr: "0 secs", refStr: "2005-10-10 12:00 CEST", tzid: "Europe/Amsterdam"},
+		{name: "relative_12", expected: 1131620400, timeStr: "0 secs", refStr: "2005-11-10 12:00", tzid: "Europe/Amsterdam"},
+		{name: "relative_13", expected: 1131620400, timeStr: "0 secs", refStr: "2005-11-10 12:00 CET", tzid: "Europe/Amsterdam"},
+		{name: "relative_14", expected: 1131616800, timeStr: "0 secs", refStr: "2005-11-10 12:00 CEST", tzid: "Europe/Amsterdam"},
+		{name: "relative_15", expected: 1131620400, timeStr: "+31 days", refStr: "2005-10-10 12:00", tzid: "Europe/Amsterdam"},
+		{name: "relative_16", expected: 1099648800, timeStr: "6 month 2004-05-05 12:00:00 CEST", refStr: "", tzid: ""},
+		{name: "relative_17", expected: 1099648800, timeStr: "2004-11-05 12:00:00 CEST", refStr: "", tzid: ""},
+		{name: "relative_18", expected: 1099648800, timeStr: "2004-05-05 12:00:00 CEST 6 months", refStr: "", tzid: ""},
+		{name: "relative_19", expected: 1099648800, timeStr: "6 month 2004-05-05 12:00:00 CEST", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "relative_20", expected: 1099648800, timeStr: "2004-11-05 12:00:00 CEST", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "relative_21", expected: 1099648800, timeStr: "2004-05-05 12:00:00 CEST 6 months", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "relative_22", expected: 1099652400, timeStr: "6 month 2004-05-05 12:00:00", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "relative_23", expected: 1099652400, timeStr: "2004-11-05 12:00:00", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "relative_24", expected: 1099652400, timeStr: "2004-05-05 12:00:00 6 months", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "relative_25", expected: 1083751200, timeStr: "2004-05-05 12:00:00", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "relative_26", expected: 1068027323, timeStr: "2003-11-05 12:15:23 CEST", refStr: "", tzid: ""},
+		{name: "relative_27", expected: 1068027323, timeStr: "2004-05-05 12:15:23 CEST 6 months ago", refStr: "", tzid: ""},
+		{name: "relative_28", expected: 1068372923, timeStr: "2003-11-09 12:15:23 CEST", refStr: "", tzid: ""},
+		{name: "relative_29", expected: 1068372923, timeStr: "2004-05-05 12:15:23 CEST 6 months ago 4 days", refStr: "", tzid: ""},
+		{name: "relative_30", expected: 1145570400, timeStr: "21-04-2006", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "relative_31", expected: 1145570400, timeStr: "this weekday", refStr: "21-04-2006", tzid: "Europe/Amsterdam"},
+		{name: "relative_32", expected: 1145484000, timeStr: "last weekday", refStr: "21-04-2006", tzid: "Europe/Amsterdam"},
+		{name: "relative_33", expected: 1145570400, timeStr: "last weekday", refStr: "22-04-2006", tzid: "Europe/Amsterdam"},
+		{name: "relative_34", expected: 1145570400, timeStr: "last weekday", refStr: "23-04-2006", tzid: "Europe/Amsterdam"},
+		{name: "relative_35", expected: 1145397600, timeStr: "13 weekdays ago", refStr: "07-05-2006", tzid: "Europe/Amsterdam"},
+		{name: "relative_36", expected: 1145570400, timeStr: "21-04-2006", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "relative_37", expected: 1145570400, timeStr: "this weekday", refStr: "21-04-2006", tzid: "Europe/Amsterdam"},
+		{name: "relative_38", expected: 1145829600, timeStr: "24-04-2006", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "relative_39", expected: 1145829600, timeStr: "this weekday", refStr: "22-04-2006", tzid: "Europe/Amsterdam"},
+		{name: "relative_40", expected: 1145829600, timeStr: "this weekday", refStr: "23-04-2006", tzid: "Europe/Amsterdam"},
+		{name: "relative_41", expected: 1145829600, timeStr: "24-04-2006", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "relative_42", expected: 1145829600, timeStr: "first weekday", refStr: "21-04-2006", tzid: "Europe/Amsterdam"},
+		{name: "relative_43", expected: 1145829600, timeStr: "first weekday", refStr: "22-04-2006", tzid: "Europe/Amsterdam"},
+		{name: "relative_44", expected: 1145829600, timeStr: "first weekday", refStr: "23-04-2006", tzid: "Europe/Amsterdam"},
+		{name: "relative_45", expected: 1145916000, timeStr: "25-04-2006", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "relative_46", expected: 1145916000, timeStr: "first weekday", refStr: "24-04-2006", tzid: "Europe/Amsterdam"},
+		{name: "relative_47", expected: 1146002400, timeStr: "26-04-2006", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "relative_48", expected: 1146002400, timeStr: "8 weekday", refStr: "15-04-2006", tzid: "Europe/Amsterdam"},
+		{name: "relative_49", expected: 1146002400, timeStr: "eight weekday", refStr: "15-04-2006", tzid: "Europe/Amsterdam"},
+		{name: "relative_50", expected: 1149700004, timeStr: "Mon, 08 May 2006 13:06:44 -0400 +30 days", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "relative_weekday_1_00", expected: 1216598400, timeStr: "1 monday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_01", expected: 1216684800, timeStr: "1 tuesday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_02", expected: 1216771200, timeStr: "1 wednesday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_03", expected: 1216857600, timeStr: "1 thursday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_04", expected: 1216944000, timeStr: "1 friday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_05", expected: 1217030400, timeStr: "1 saturday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_06", expected: 1217116800, timeStr: "1 sunday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_07", expected: 1217203200, timeStr: "1 monday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_08", expected: 1216684800, timeStr: "1 tuesday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_09", expected: 1216771200, timeStr: "1 wednesday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_10", expected: 1216857600, timeStr: "1 thursday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_11", expected: 1216944000, timeStr: "1 friday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_12", expected: 1217030400, timeStr: "1 saturday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_13", expected: 1217116800, timeStr: "1 sunday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_14", expected: 1217203200, timeStr: "1 monday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_15", expected: 1217289600, timeStr: "1 tuesday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_16", expected: 1216771200, timeStr: "1 wednesday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_17", expected: 1216857600, timeStr: "1 thursday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_18", expected: 1216944000, timeStr: "1 friday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_19", expected: 1217030400, timeStr: "1 saturday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_20", expected: 1217116800, timeStr: "1 sunday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_21", expected: 1217203200, timeStr: "1 monday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_22", expected: 1217289600, timeStr: "1 tuesday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_23", expected: 1217376000, timeStr: "1 wednesday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_24", expected: 1216857600, timeStr: "1 thursday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_25", expected: 1216944000, timeStr: "1 friday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_26", expected: 1217030400, timeStr: "1 saturday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_27", expected: 1217116800, timeStr: "1 sunday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_28", expected: 1217203200, timeStr: "1 monday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_29", expected: 1217289600, timeStr: "1 tuesday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_30", expected: 1217376000, timeStr: "1 wednesday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_31", expected: 1217462400, timeStr: "1 thursday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_32", expected: 1216944000, timeStr: "1 friday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_33", expected: 1217030400, timeStr: "1 saturday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_34", expected: 1217116800, timeStr: "1 sunday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_35", expected: 1217203200, timeStr: "1 monday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_36", expected: 1217289600, timeStr: "1 tuesday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_37", expected: 1217376000, timeStr: "1 wednesday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_38", expected: 1217462400, timeStr: "1 thursday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_39", expected: 1217548800, timeStr: "1 friday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_40", expected: 1217030400, timeStr: "1 saturday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_41", expected: 1217116800, timeStr: "1 sunday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_42", expected: 1217203200, timeStr: "1 monday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_43", expected: 1217289600, timeStr: "1 tuesday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_44", expected: 1217376000, timeStr: "1 wednesday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_45", expected: 1217462400, timeStr: "1 thursday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_46", expected: 1217548800, timeStr: "1 friday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_47", expected: 1217635200, timeStr: "1 saturday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_1_48", expected: 1217116800, timeStr: "1 sunday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_00", expected: 1217203200, timeStr: "+1 week monday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_01", expected: 1217289600, timeStr: "+1 week tuesday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_02", expected: 1217376000, timeStr: "+1 week wednesday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_03", expected: 1217462400, timeStr: "+1 week thursday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_04", expected: 1217548800, timeStr: "+1 week friday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_05", expected: 1217635200, timeStr: "+1 week saturday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_06", expected: 1217721600, timeStr: "+1 week sunday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_07", expected: 1217808000, timeStr: "+1 week monday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_08", expected: 1217289600, timeStr: "+1 week tuesday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_09", expected: 1217376000, timeStr: "+1 week wednesday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_10", expected: 1217462400, timeStr: "+1 week thursday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_11", expected: 1217548800, timeStr: "+1 week friday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_12", expected: 1217635200, timeStr: "+1 week saturday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_13", expected: 1217721600, timeStr: "+1 week sunday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_14", expected: 1217808000, timeStr: "+1 week monday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_15", expected: 1217894400, timeStr: "+1 week tuesday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_16", expected: 1217376000, timeStr: "+1 week wednesday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_17", expected: 1217462400, timeStr: "+1 week thursday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_18", expected: 1217548800, timeStr: "+1 week friday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_19", expected: 1217635200, timeStr: "+1 week saturday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_20", expected: 1217721600, timeStr: "+1 week sunday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_21", expected: 1217808000, timeStr: "+1 week monday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_22", expected: 1217894400, timeStr: "+1 week tuesday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_23", expected: 1217980800, timeStr: "+1 week wednesday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_24", expected: 1217462400, timeStr: "+1 week thursday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_25", expected: 1217548800, timeStr: "+1 week friday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_26", expected: 1217635200, timeStr: "+1 week saturday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_27", expected: 1217721600, timeStr: "+1 week sunday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_28", expected: 1217808000, timeStr: "+1 week monday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_29", expected: 1217894400, timeStr: "+1 week tuesday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_30", expected: 1217980800, timeStr: "+1 week wednesday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_31", expected: 1218067200, timeStr: "+1 week thursday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_32", expected: 1217548800, timeStr: "+1 week friday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_33", expected: 1217635200, timeStr: "+1 week saturday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_34", expected: 1217721600, timeStr: "+1 week sunday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_35", expected: 1217808000, timeStr: "+1 week monday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_36", expected: 1217894400, timeStr: "+1 week tuesday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_37", expected: 1217980800, timeStr: "+1 week wednesday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_38", expected: 1218067200, timeStr: "+1 week thursday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_39", expected: 1218153600, timeStr: "+1 week friday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_40", expected: 1217635200, timeStr: "+1 week saturday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_41", expected: 1217721600, timeStr: "+1 week sunday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_42", expected: 1217808000, timeStr: "+1 week monday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_43", expected: 1217894400, timeStr: "+1 week tuesday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_44", expected: 1217980800, timeStr: "+1 week wednesday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_45", expected: 1218067200, timeStr: "+1 week thursday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_46", expected: 1218153600, timeStr: "+1 week friday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_47", expected: 1218240000, timeStr: "+1 week saturday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_2_48", expected: 1217721600, timeStr: "+1 week sunday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_00", expected: 1217203200, timeStr: "first monday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_01", expected: 1216684800, timeStr: "first tuesday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_02", expected: 1216771200, timeStr: "first wednesday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_03", expected: 1216857600, timeStr: "first thursday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_04", expected: 1216944000, timeStr: "first friday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_05", expected: 1217030400, timeStr: "first saturday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_06", expected: 1217116800, timeStr: "first sunday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_07", expected: 1217203200, timeStr: "first monday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_08", expected: 1217289600, timeStr: "first tuesday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_09", expected: 1216771200, timeStr: "first wednesday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_10", expected: 1216857600, timeStr: "first thursday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_11", expected: 1216944000, timeStr: "first friday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_12", expected: 1217030400, timeStr: "first saturday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_13", expected: 1217116800, timeStr: "first sunday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_14", expected: 1217203200, timeStr: "first monday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_15", expected: 1217289600, timeStr: "first tuesday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_16", expected: 1217376000, timeStr: "first wednesday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_17", expected: 1216857600, timeStr: "first thursday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_18", expected: 1216944000, timeStr: "first friday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_19", expected: 1217030400, timeStr: "first saturday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_20", expected: 1217116800, timeStr: "first sunday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_21", expected: 1217203200, timeStr: "first monday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_22", expected: 1217289600, timeStr: "first tuesday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_23", expected: 1217376000, timeStr: "first wednesday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_24", expected: 1217462400, timeStr: "first thursday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_25", expected: 1216944000, timeStr: "first friday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_26", expected: 1217030400, timeStr: "first saturday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_27", expected: 1217116800, timeStr: "first sunday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_28", expected: 1217203200, timeStr: "first monday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_29", expected: 1217289600, timeStr: "first tuesday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_30", expected: 1217376000, timeStr: "first wednesday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_31", expected: 1217462400, timeStr: "first thursday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_32", expected: 1217548800, timeStr: "first friday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_33", expected: 1217030400, timeStr: "first saturday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_34", expected: 1217116800, timeStr: "first sunday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_35", expected: 1217203200, timeStr: "first monday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_36", expected: 1217289600, timeStr: "first tuesday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_37", expected: 1217376000, timeStr: "first wednesday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_38", expected: 1217462400, timeStr: "first thursday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_39", expected: 1217548800, timeStr: "first friday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_40", expected: 1217635200, timeStr: "first saturday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_41", expected: 1217116800, timeStr: "first sunday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_42", expected: 1217203200, timeStr: "first monday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_43", expected: 1217289600, timeStr: "first tuesday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_44", expected: 1217376000, timeStr: "first wednesday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_45", expected: 1217462400, timeStr: "first thursday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_46", expected: 1217548800, timeStr: "first friday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_47", expected: 1217635200, timeStr: "first saturday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_first_48", expected: 1217721600, timeStr: "first sunday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_00", expected: 1217808000, timeStr: "second monday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_01", expected: 1217289600, timeStr: "second tuesday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_02", expected: 1217376000, timeStr: "second wednesday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_03", expected: 1217462400, timeStr: "second thursday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_04", expected: 1217548800, timeStr: "second friday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_05", expected: 1217635200, timeStr: "second saturday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_06", expected: 1217721600, timeStr: "second sunday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_07", expected: 1217808000, timeStr: "second monday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_08", expected: 1217894400, timeStr: "second tuesday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_09", expected: 1217376000, timeStr: "second wednesday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_10", expected: 1217462400, timeStr: "second thursday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_11", expected: 1217548800, timeStr: "second friday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_12", expected: 1217635200, timeStr: "second saturday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_13", expected: 1217721600, timeStr: "second sunday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_14", expected: 1217808000, timeStr: "second monday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_15", expected: 1217894400, timeStr: "second tuesday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_16", expected: 1217980800, timeStr: "second wednesday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_17", expected: 1217462400, timeStr: "second thursday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_18", expected: 1217548800, timeStr: "second friday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_19", expected: 1217635200, timeStr: "second saturday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_20", expected: 1217721600, timeStr: "second sunday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_21", expected: 1217808000, timeStr: "second monday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_22", expected: 1217894400, timeStr: "second tuesday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_23", expected: 1217980800, timeStr: "second wednesday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_24", expected: 1218067200, timeStr: "second thursday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_25", expected: 1217548800, timeStr: "second friday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_26", expected: 1217635200, timeStr: "second saturday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_27", expected: 1217721600, timeStr: "second sunday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_28", expected: 1217808000, timeStr: "second monday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_29", expected: 1217894400, timeStr: "second tuesday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_30", expected: 1217980800, timeStr: "second wednesday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_31", expected: 1218067200, timeStr: "second thursday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_32", expected: 1218153600, timeStr: "second friday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_33", expected: 1217635200, timeStr: "second saturday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_34", expected: 1217721600, timeStr: "second sunday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_35", expected: 1217808000, timeStr: "second monday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_36", expected: 1217894400, timeStr: "second tuesday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_37", expected: 1217980800, timeStr: "second wednesday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_38", expected: 1218067200, timeStr: "second thursday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_39", expected: 1218153600, timeStr: "second friday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_40", expected: 1218240000, timeStr: "second saturday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_41", expected: 1217721600, timeStr: "second sunday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_42", expected: 1217808000, timeStr: "second monday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_43", expected: 1217894400, timeStr: "second tuesday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_44", expected: 1217980800, timeStr: "second wednesday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_45", expected: 1218067200, timeStr: "second thursday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_46", expected: 1218153600, timeStr: "second friday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_47", expected: 1218240000, timeStr: "second saturday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_second_48", expected: 1218326400, timeStr: "second sunday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_00", expected: 1216598400, timeStr: "monday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_01", expected: 1216684800, timeStr: "tuesday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_02", expected: 1216771200, timeStr: "wednesday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_03", expected: 1216857600, timeStr: "thursday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_04", expected: 1216944000, timeStr: "friday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_05", expected: 1217030400, timeStr: "saturday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_06", expected: 1217116800, timeStr: "sunday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_07", expected: 1217203200, timeStr: "monday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_08", expected: 1216684800, timeStr: "tuesday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_09", expected: 1216771200, timeStr: "wednesday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_10", expected: 1216857600, timeStr: "thursday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_11", expected: 1216944000, timeStr: "friday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_12", expected: 1217030400, timeStr: "saturday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_13", expected: 1217116800, timeStr: "sunday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_14", expected: 1217203200, timeStr: "monday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_15", expected: 1217289600, timeStr: "tuesday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_16", expected: 1216771200, timeStr: "wednesday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_17", expected: 1216857600, timeStr: "thursday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_18", expected: 1216944000, timeStr: "friday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_19", expected: 1217030400, timeStr: "saturday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_20", expected: 1217116800, timeStr: "sunday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_21", expected: 1217203200, timeStr: "monday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_22", expected: 1217289600, timeStr: "tuesday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_23", expected: 1217376000, timeStr: "wednesday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_24", expected: 1216857600, timeStr: "thursday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_25", expected: 1216944000, timeStr: "friday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_26", expected: 1217030400, timeStr: "saturday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_27", expected: 1217116800, timeStr: "sunday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_28", expected: 1217203200, timeStr: "monday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_29", expected: 1217289600, timeStr: "tuesday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_30", expected: 1217376000, timeStr: "wednesday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_31", expected: 1217462400, timeStr: "thursday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_32", expected: 1216944000, timeStr: "friday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_33", expected: 1217030400, timeStr: "saturday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_34", expected: 1217116800, timeStr: "sunday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_35", expected: 1217203200, timeStr: "monday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_36", expected: 1217289600, timeStr: "tuesday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_37", expected: 1217376000, timeStr: "wednesday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_38", expected: 1217462400, timeStr: "thursday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_39", expected: 1217548800, timeStr: "friday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_40", expected: 1217030400, timeStr: "saturday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_41", expected: 1217116800, timeStr: "sunday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_42", expected: 1217203200, timeStr: "monday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_43", expected: 1217289600, timeStr: "tuesday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_44", expected: 1217376000, timeStr: "wednesday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_45", expected: 1217462400, timeStr: "thursday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_46", expected: 1217548800, timeStr: "friday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_47", expected: 1217635200, timeStr: "saturday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_48", expected: 1217116800, timeStr: "sunday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_00", expected: 1217203200, timeStr: "+1 week monday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_01", expected: 1217289600, timeStr: "+1 week tuesday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_02", expected: 1217376000, timeStr: "+1 week wednesday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_03", expected: 1217462400, timeStr: "+1 week thursday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_04", expected: 1217548800, timeStr: "+1 week friday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_05", expected: 1217635200, timeStr: "+1 week saturday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_06", expected: 1217721600, timeStr: "+1 week sunday", refStr: "2008-07-21 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_07", expected: 1217808000, timeStr: "+1 week monday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_08", expected: 1217289600, timeStr: "+1 week tuesday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_09", expected: 1217376000, timeStr: "+1 week wednesday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_10", expected: 1217462400, timeStr: "+1 week thursday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_11", expected: 1217548800, timeStr: "+1 week friday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_12", expected: 1217635200, timeStr: "+1 week saturday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_13", expected: 1217721600, timeStr: "+1 week sunday", refStr: "2008-07-22 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_14", expected: 1217808000, timeStr: "+1 week monday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_15", expected: 1217894400, timeStr: "+1 week tuesday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_16", expected: 1217376000, timeStr: "+1 week wednesday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_17", expected: 1217462400, timeStr: "+1 week thursday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_18", expected: 1217548800, timeStr: "+1 week friday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_19", expected: 1217635200, timeStr: "+1 week saturday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_20", expected: 1217721600, timeStr: "+1 week sunday", refStr: "2008-07-23 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_21", expected: 1217808000, timeStr: "+1 week monday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_22", expected: 1217894400, timeStr: "+1 week tuesday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_23", expected: 1217980800, timeStr: "+1 week wednesday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_24", expected: 1217462400, timeStr: "+1 week thursday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_25", expected: 1217548800, timeStr: "+1 week friday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_26", expected: 1217635200, timeStr: "+1 week saturday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_27", expected: 1217721600, timeStr: "+1 week sunday", refStr: "2008-07-24 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_28", expected: 1217808000, timeStr: "+1 week monday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_29", expected: 1217894400, timeStr: "+1 week tuesday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_30", expected: 1217980800, timeStr: "+1 week wednesday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_31", expected: 1218067200, timeStr: "+1 week thursday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_32", expected: 1217548800, timeStr: "+1 week friday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_33", expected: 1217635200, timeStr: "+1 week saturday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_34", expected: 1217721600, timeStr: "+1 week sunday", refStr: "2008-07-25 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_35", expected: 1217808000, timeStr: "+1 week monday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_36", expected: 1217894400, timeStr: "+1 week tuesday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_37", expected: 1217980800, timeStr: "+1 week wednesday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_38", expected: 1218067200, timeStr: "+1 week thursday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_39", expected: 1218153600, timeStr: "+1 week friday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_40", expected: 1217635200, timeStr: "+1 week saturday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_41", expected: 1217721600, timeStr: "+1 week sunday", refStr: "2008-07-26 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_42", expected: 1217808000, timeStr: "+1 week monday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_43", expected: 1217894400, timeStr: "+1 week tuesday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_44", expected: 1217980800, timeStr: "+1 week wednesday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_45", expected: 1218067200, timeStr: "+1 week thursday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_46", expected: 1218153600, timeStr: "+1 week friday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_47", expected: 1218240000, timeStr: "+1 week saturday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "relative_weekday_week1_48", expected: 1217721600, timeStr: "+1 week sunday", refStr: "2008-07-27 00:00 UTC", tzid: "UTC"},
+		{name: "strange_00", expected: 1126396800, timeStr: "+1126396800 secs", refStr: "1970-01-01 00:00:00 GMT", tzid: ""},
+		{name: "strange_01", expected: 1118016000, timeStr: "2005-06-06 00:00:00", refStr: "", tzid: ""},
+		{name: "strange_02", expected: 1126396800, timeStr: "@1126396800", refStr: "1970-01-01 00:00:00 GMT", tzid: ""},
+		{name: "strange_03", expected: -126396800, timeStr: "@-126396800", refStr: "1970-01-01 00:00:00 GMT", tzid: ""},
+		{name: "strange_04", expected: 1126396800, timeStr: "@1126396800 +0200", refStr: "1970-01-01 00:00:00 GMT", tzid: ""},
+		{name: "strange_05", expected: -126396800, timeStr: "@-126396800 Europe/Oslo", refStr: "1970-01-01 00:00:00 GMT", tzid: ""},
+		{name: "strange_06", expected: 0, timeStr: "@0", refStr: "1970-01-01 00:00:00 GMT", tzid: ""},
+		{name: "strange_07", expected: 1118008800, timeStr: "2005-06-06 00:00:00 CEST", refStr: "", tzid: ""},
+		{name: "strange_08", expected: 1118008800, timeStr: "2005-06-06 00:00:00 +0200", refStr: "", tzid: ""},
+		{name: "strange_09", expected: 1126398132, timeStr: "@1126398132.712315", refStr: "1970-01-01 00:00:00 GMT", tzid: ""},
+		{name: "thisweek_00", expected: 1116547200, timeStr: "today", refStr: "2005-05-20 21:08:14 GMT", tzid: ""},
+		{name: "thisweek_01", expected: 1116547200, timeStr: "00:00:00", refStr: "2005-05-20 00:00:00 GMT", tzid: ""},
+		{name: "thisweek_02", expected: 1116590400, timeStr: "2005-05-20 noon", refStr: "", tzid: ""},
+		{name: "thisweek_03", expected: 1116590400, timeStr: "today noon", refStr: "2005-05-20 21:08:14 GMT", tzid: ""},
+		{name: "thisweek_04", expected: 1116590400, timeStr: "12:00:00", refStr: "2005-05-20 00:00:00 GMT", tzid: ""},
+		{name: "thisweek_05", expected: 1116460800, timeStr: "yesterday", refStr: "2005-05-20 21:08:14 GMT", tzid: ""},
+		{name: "thisweek_06", expected: 1116460800, timeStr: "00:00:00", refStr: "2005-05-19 00:00:00 GMT", tzid: ""},
+		{name: "thisweek_07", expected: 1116201600, timeStr: "last monday", refStr: "2005-05-20 21:08:14 GMT", tzid: ""},
+		{name: "thisweek_08", expected: 1116288000, timeStr: "last tuesday", refStr: "2005-05-20 21:08:14 GMT", tzid: ""},
+		{name: "thisweek_09", expected: 1116374400, timeStr: "last wednesday", refStr: "2005-05-20 21:08:14 GMT", tzid: ""},
+		{name: "thisweek_10", expected: 1116460800, timeStr: "last thursday", refStr: "2005-05-20 21:08:14 GMT", tzid: ""},
+		{name: "thisweek_11", expected: 1115942400, timeStr: "last friday", refStr: "2005-05-20 21:08:14 GMT", tzid: ""},
+		{name: "thisweek_12", expected: 1116028800, timeStr: "last saturday", refStr: "2005-05-20 21:08:14 GMT", tzid: ""},
+		{name: "thisweek_13", expected: 1116115200, timeStr: "last sunday", refStr: "2005-05-20 21:08:14 GMT", tzid: ""},
+		{name: "thisweek_14", expected: 1116806400, timeStr: "next monday", refStr: "2005-05-20 21:08:14 GMT", tzid: ""},
+		{name: "thisweek_15", expected: 1116892800, timeStr: "next tuesday", refStr: "2005-05-20 21:08:14 GMT", tzid: ""},
+		{name: "thisweek_16", expected: 1116979200, timeStr: "next wednesday", refStr: "2005-05-20 21:08:14 GMT", tzid: ""},
+		{name: "thisweek_17", expected: 1117065600, timeStr: "next thursday", refStr: "2005-05-20 21:08:14 GMT", tzid: ""},
+		{name: "thisweek_18", expected: 1117152000, timeStr: "next friday", refStr: "2005-05-20 21:08:14 GMT", tzid: ""},
+		{name: "thisweek_19", expected: 1116633600, timeStr: "next saturday", refStr: "2005-05-20 21:08:14 GMT", tzid: ""},
+		{name: "thisweek_20", expected: 1116720000, timeStr: "next sunday", refStr: "2005-05-20 21:08:14 GMT", tzid: ""},
+		{name: "transition_00", expected: 1206835200, timeStr: "2008-03-30 01:00:00", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "transition_01", expected: 1206838799, timeStr: "2008-03-30 01:59:59", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "transition_02", expected: 1206838800, timeStr: "2008-03-30 02:00:00", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "transition_03", expected: 1206842399, timeStr: "2008-03-30 02:59:59", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "transition_04", expected: 1206838800, timeStr: "2008-03-30 03:00:00", refStr: "", tzid: "Europe/Amsterdam"},
+		{name: "weekdays_00", expected: 1116633600, timeStr: "this saturday", refStr: "2005-05-19 21:08:14 GMT", tzid: ""},
+		{name: "weekdays_01", expected: 1116633600, timeStr: "00:00:00", refStr: "2005-05-21 00:00:00 GMT", tzid: ""},
+		{name: "weekdays_02", expected: 1116028800, timeStr: "this saturday ago", refStr: "2005-05-19 21:08:14 GMT", tzid: ""},
+		{name: "weekdays_03", expected: 1116028800, timeStr: "00:00:00", refStr: "2005-05-14 00:00:00 GMT", tzid: ""},
+		{name: "weekdays_04", expected: 1116028800, timeStr: "last saturday", refStr: "2005-05-19 21:08:14 GMT", tzid: ""},
+		{name: "weekdays_05", expected: 1116028800, timeStr: "00:00:00", refStr: "2005-05-14 00:00:00 GMT", tzid: ""},
+		{name: "weekdays_06", expected: 1116633600, timeStr: "last saturday ago", refStr: "2005-05-19 21:08:14 GMT", tzid: ""},
+		{name: "weekdays_07", expected: 1116633600, timeStr: "00:00:00", refStr: "2005-05-21 00:00:00 GMT", tzid: ""},
+		{name: "weekdays_08", expected: 1116633600, timeStr: "first saturday", refStr: "2005-05-19 21:08:14 GMT", tzid: ""},
+		{name: "weekdays_09", expected: 1116633600, timeStr: "00:00:00", refStr: "2005-05-21 00:00:00 GMT", tzid: ""},
+		{name: "weekdays_10", expected: 1116028800, timeStr: "first saturday ago", refStr: "2005-05-19 21:08:14 GMT", tzid: ""},
+		{name: "weekdays_11", expected: 1116028800, timeStr: "00:00:00", refStr: "2005-05-14 00:00:00 GMT", tzid: ""},
+		{name: "weekdays_12", expected: 1116633600, timeStr: "next saturday", refStr: "2005-05-19 21:08:14 GMT", tzid: ""},
+		{name: "weekdays_13", expected: 1116633600, timeStr: "00:00:00", refStr: "2005-05-21 00:00:00 GMT", tzid: ""},
+		{name: "weekdays_14", expected: 1116028800, timeStr: "next saturday ago", refStr: "2005-05-19 21:08:14 GMT", tzid: ""},
+		{name: "weekdays_15", expected: 1116028800, timeStr: "00:00:00", refStr: "2005-05-14 00:00:00 GMT", tzid: ""},
+		{name: "weekdays_16", expected: 1117843200, timeStr: "third saturday", refStr: "2005-05-19 21:08:14 GMT", tzid: ""},
+		{name: "weekdays_17", expected: 1117843200, timeStr: "00:00:00", refStr: "2005-06-04 00:00:00 GMT", tzid: ""},
+		{name: "weekdays_18", expected: 1114819200, timeStr: "third saturday ago", refStr: "2005-05-19 21:08:14 GMT", tzid: ""},
+		{name: "weekdays_19", expected: 1114819200, timeStr: "00:00:00", refStr: "2005-04-30 00:00:00 GMT", tzid: ""},
+		{name: "weekdays_20", expected: 1116028800, timeStr: "previous saturday", refStr: "2005-05-19 21:08:14 GMT", tzid: ""},
+		{name: "weekdays_21", expected: 1116028800, timeStr: "00:00:00", refStr: "2005-05-14 00:00:00 GMT", tzid: ""},
+		{name: "week_00", expected: 1208728800, timeStr: "this week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_01", expected: 1208728800, timeStr: "this week monday", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_02", expected: 1208815200, timeStr: "this week tuesday", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_03", expected: 1208901600, timeStr: "this week wednesday", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_04", expected: 1208988000, timeStr: "this week thursday", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_05", expected: 1209074400, timeStr: "this week friday", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_06", expected: 1209160800, timeStr: "this week saturday", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_07", expected: 1209247200, timeStr: "this week sunday", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_08", expected: 1208728800, timeStr: "monday this week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_09", expected: 1208815200, timeStr: "tuesday this week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_10", expected: 1208901600, timeStr: "wednesday this week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_11", expected: 1208988000, timeStr: "thursday this week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_12", expected: 1209074400, timeStr: "friday this week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_13", expected: 1209160800, timeStr: "saturday this week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_14", expected: 1209247200, timeStr: "sunday this week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_15", expected: 1208124000, timeStr: "last week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_16", expected: 1208124000, timeStr: "last week monday", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_17", expected: 1208210400, timeStr: "last week tuesday", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_18", expected: 1208296800, timeStr: "last week wednesday", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_19", expected: 1208383200, timeStr: "thursday last week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_20", expected: 1208469600, timeStr: "friday last week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_21", expected: 1208556000, timeStr: "saturday last week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_22", expected: 1208642400, timeStr: "sunday last week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_23", expected: 1208124000, timeStr: "previous week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_24", expected: 1208124000, timeStr: "previous week monday", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_25", expected: 1208210400, timeStr: "previous week tuesday", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_26", expected: 1208296800, timeStr: "previous week wednesday", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_27", expected: 1208383200, timeStr: "thursday previous week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_28", expected: 1208469600, timeStr: "friday previous week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_29", expected: 1208556000, timeStr: "saturday previous week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_30", expected: 1208642400, timeStr: "sunday previous week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_31", expected: 1209333600, timeStr: "next week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_32", expected: 1209333600, timeStr: "next week monday", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_33", expected: 1209420000, timeStr: "next week tuesday", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_34", expected: 1209506400, timeStr: "next week wednesday", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_35", expected: 1209592800, timeStr: "thursday next week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_36", expected: 1209679200, timeStr: "friday next week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_37", expected: 1209765600, timeStr: "saturday next week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "week_38", expected: 1209852000, timeStr: "sunday next week", refStr: "2008-04-25", tzid: "Europe/Oslo"},
+		{name: "long_min_0", expected: -9223372036854775808, timeStr: "@-9223372036854775808", refStr: "now", tzid: "UTC"},
+		{name: "long_min_1", expected: -9223372036854775000, timeStr: "@-9223372036854775000", refStr: "now", tzid: "UTC"},
+		{name: "long_max_0", expected: 9223372036854775807, timeStr: "@9223372036854775807", refStr: "now", tzid: "UTC"},
+		{name: "long_max_1", expected: 9223372036854775000, timeStr: "@9223372036854775000", refStr: "now", tzid: "UTC"},
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.description, func(t *testing.T) {
-			// Parse the time string
-			time, err := timelib.StrToTime(tc.timeString, nil)
-			if err != nil {
-				t.Logf("Error parsing time string '%s': %v", tc.timeString, err)
-			}
-
-			// Parse the reference time
-			reference, err := timelib.StrToTime(tc.reference, nil)
-			if err != nil {
-				t.Logf("Error parsing reference '%s': %v", tc.reference, err)
-			}
-
-			// Parse timezone info
-			var dummyError int
-			tzInfo, err := timelib.ParseTzfile(tc.timezone, timelib.BuiltinDB(), &dummyError)
-			if err != nil {
-				t.Logf("Error parsing timezone '%s': %v", tc.timezone, err)
-			}
-
-			// Basic validation - function should not crash
-			t.Logf("Input: %s, Reference: %s, Timezone: %s", tc.timeString, tc.reference, tc.timezone)
-			t.Logf("  Time: %+v", time)
-			t.Logf("  Reference: %+v", reference)
-			t.Logf("  Timezone: %+v", tzInfo)
-
-			// Test FillHoles functionality
-			if time != nil && reference != nil {
-				timelib.FillHoles(time, reference, timelib.TIMELIB_OVERRIDE_TIME)
-				t.Logf("  After FillHoles: %+v", time)
-			}
+		t.Run(tc.name, func(t *testing.T) {
+			testCreateTS(t, tc.timeStr, tc.refStr, tc.tzid, tc.expected)
 		})
 	}
 }
 
-func TestCreateTimestampBasic(t *testing.T) {
-	// Test basic timestamp creation functionality
-	// Use simple ISO format to avoid timezone parsing issues
-	timeString := "2021-04-07"
-	reference := "2021-01-01"
-
-	// Parse the time string
-	time, err := timelib.StrToTime(timeString, nil)
+// testCreateTS is a helper function that mimics the C test logic
+func testCreateTS(t *testing.T, timeStr, refStr, tzid string, expectedSSE int64) {
+	// Parse the time string (use BuiltinDB to allow timezone parsing from string)
+	time, err := timelib.StrToTime(timeStr, timelib.BuiltinDB())
 	if err != nil {
-		t.Logf("Error parsing time string '%s': %v", timeString, err)
+		t.Fatalf("Failed to parse time string '%s': %v", timeStr, err)
+	}
+	if time == nil {
+		t.Fatalf("StrToTime returned nil for '%s'", timeStr)
 	}
 
-	// Parse the reference time
-	referenceTime, err := timelib.StrToTime(reference, nil)
-	if err != nil {
-		t.Logf("Error parsing reference '%s': %v", reference, err)
+	// Parse the reference time if provided
+	var now *timelib.Time
+	if refStr != "" {
+		now, err = timelib.StrToTime(refStr, timelib.BuiltinDB())
+		if err != nil {
+			t.Fatalf("Failed to parse reference string '%s': %v", refStr, err)
+		}
+		if now == nil {
+			t.Fatalf("StrToTime returned nil for reference '%s'", refStr)
+		}
+
+		// Fill holes using reference time
+		timelib.FillHoles(time, now, timelib.TIMELIB_OVERRIDE_TIME)
 	}
 
-	// For now, just verify the functions can be called without panicking
-	t.Logf("Time string: %s", timeString)
-	t.Logf("Reference: %s", reference)
-	t.Logf("Parsed time: %+v", time)
-	t.Logf("Parsed reference: %+v", referenceTime)
-
-	t.Log("CreateTimestampBasic test completed successfully")
-}
-
-func TestCreateTimestampErrorHandling(t *testing.T) {
-	// Test error handling for timestamp creation
-	testCases := []struct {
-		timeString  string
-		reference   string
-		timezone    string
-		description string
-	}{
-		{"", "2021-01-01", "UTC", "Empty time string"},
-		{"2021-01-01", "", "UTC", "Empty reference"},
+	// Parse timezone if provided
+	var tzi *timelib.TzInfo
+	if tzid != "" {
+		var dummyError int
+		tzi, err = timelib.ParseTzfile(tzid, timelib.BuiltinDB(), &dummyError)
+		if err != nil {
+			t.Fatalf("Failed to parse timezone '%s': %v", tzid, err)
+		}
+		if tzi == nil {
+			t.Fatalf("ParseTzfile returned nil for timezone '%s'", tzid)
+		}
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.description, func(t *testing.T) {
-			// Parse the time string
-			time, timeErr := timelib.StrToTime(tc.timeString, nil)
+	// Update timestamp with timezone (matches C behavior: always call UpdateTS)
+	time.UpdateTS(tzi)
 
-			// Parse the reference time
-			reference, refErr := timelib.StrToTime(tc.reference, nil)
+	// Check the result
+	if time.Sse != expectedSSE {
+		t.Errorf("Expected SSE %d, got %d (diff: %d)", expectedSSE, time.Sse, time.Sse-expectedSSE)
+		t.Logf("  Time string: %s", timeStr)
+		t.Logf("  Reference: %s", refStr)
+		t.Logf("  Timezone: %s", tzid)
+		t.Logf("  Parsed time: Y=%d M=%d D=%d h=%d m=%d s=%d",
+			time.Y, time.M, time.D, time.H, time.I, time.S)
+	}
 
-			// Parse timezone info
-			var dummyError int
-			tzInfo, err := timelib.ParseTzfile(tc.timezone, timelib.BuiltinDB(), &dummyError)
-
-			// The functions should handle errors gracefully
-			t.Logf("Input: %s, Reference: %s, Timezone: %s", tc.timeString, tc.reference, tc.timezone)
-			t.Logf("  Time: %+v, Error: %v", time, timeErr)
-			t.Logf("  Reference: %+v, Error: %v", reference, refErr)
-			t.Logf("  Timezone: %+v, Error: %v", tzInfo, err)
-
-			if timeErr != nil {
-				t.Logf("  Time Error: %v", timeErr)
-			}
-			if refErr != nil {
-				t.Logf("  Reference Error: %v", refErr)
-			}
-		})
+	// Clean up
+	if now != nil {
+		timelib.TimeDtor(now)
+	}
+	timelib.TimeDtor(time)
+	if tzi != nil {
+		timelib.TzinfoDtor(tzi)
 	}
 }

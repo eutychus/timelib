@@ -1253,7 +1253,7 @@ func TestIssue0092(t *testing.T) {
 	}
 
 	if err == nil {
-		t.Errorf("Expected 1 error, got %d", 1)
+		t.Errorf("Expected error for invalid timestamp '%s', got nil", str)
 	}
 }
 
