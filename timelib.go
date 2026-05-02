@@ -11,7 +11,7 @@ import (
 
 // Library version constants
 const (
-	LibraryVersion = "2022.16-go"
+	LibraryVersion = "1.2.0"
 	TzdataVersion  = "2026.1"
 )
 
