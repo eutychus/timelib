@@ -43,6 +43,96 @@ func testParse(tzid, from, to string) (*timelib.Time, *timelib.Time, *timelib.Re
 	return tFrom, tTo, diff, nil
 }
 
+// Helper function to parse time strings with different timezones
+func testParseTz(tzidFrom, tzidTo, from, to string) (*timelib.Time, *timelib.Time, *timelib.RelTime, error) {
+	var errCode int
+	tziFrom, err := timelib.ParseTzfile(tzidFrom, timelib.BuiltinDB(), &errCode)
+	if err != nil {
+		tziFrom = nil
+	}
+	tziTo, err := timelib.ParseTzfile(tzidTo, timelib.BuiltinDB(), &errCode)
+	if err != nil {
+		tziTo = nil
+	}
+
+	tNow := timelib.TimeCtor()
+	tNow.Y = 2024
+	tNow.M = 1
+	tNow.D = 1
+	tNow.H = 0
+	tNow.I = 0
+	tNow.S = 0
+
+	tFrom, _ := timelib.StrToTime(from, nil)
+	tTo, _ := timelib.StrToTime(to, nil)
+
+	timelib.FillHoles(tFrom, tNow, timelib.TIMELIB_NO_CLONE)
+	timelib.FillHoles(tTo, tNow, timelib.TIMELIB_NO_CLONE)
+
+	tFrom.UpdateTS(tziFrom)
+	tTo.UpdateTS(tziTo)
+
+	diff := tFrom.Diff(tTo)
+	return tFrom, tTo, diff, nil
+}
+
+// Helper function to parse time strings with offset
+func testParseOffset(offsetFrom, offsetTo int32, from, to string) (*timelib.Time, *timelib.Time, *timelib.RelTime, error) {
+	tNow := timelib.TimeCtor()
+	tNow.Y = 2024
+	tNow.M = 1
+	tNow.D = 1
+	tNow.H = 0
+	tNow.I = 0
+	tNow.S = 0
+
+	tFrom, _ := timelib.StrToTime(from, nil)
+	tTo, _ := timelib.StrToTime(to, nil)
+
+	timelib.FillHoles(tFrom, tNow, timelib.TIMELIB_NO_CLONE)
+	timelib.FillHoles(tTo, tNow, timelib.TIMELIB_NO_CLONE)
+
+	tFrom.ZoneType = timelib.TIMELIB_ZONETYPE_OFFSET
+	tFrom.Z = offsetFrom
+	tTo.ZoneType = timelib.TIMELIB_ZONETYPE_OFFSET
+	tTo.Z = offsetTo
+
+	tFrom.UpdateTS(nil)
+	tTo.UpdateTS(nil)
+
+	diff := tFrom.Diff(tTo)
+	return tFrom, tTo, diff, nil
+}
+
+func testParseOffsetWithDst(offsetFrom int32, dstFrom int, offsetTo int32, dstTo int, from, to string) (*timelib.Time, *timelib.Time, *timelib.RelTime, error) {
+	tNow := timelib.TimeCtor()
+	tNow.Y = 2024
+	tNow.M = 1
+	tNow.D = 1
+	tNow.H = 0
+	tNow.I = 0
+	tNow.S = 0
+
+	tFrom, _ := timelib.StrToTime(from, nil)
+	tTo, _ := timelib.StrToTime(to, nil)
+
+	timelib.FillHoles(tFrom, tNow, timelib.TIMELIB_NO_CLONE)
+	timelib.FillHoles(tTo, tNow, timelib.TIMELIB_NO_CLONE)
+
+	tFrom.ZoneType = timelib.TIMELIB_ZONETYPE_OFFSET
+	tFrom.Z = offsetFrom
+	tFrom.Dst = dstFrom
+	tTo.ZoneType = timelib.TIMELIB_ZONETYPE_OFFSET
+	tTo.Z = offsetTo
+	tTo.Dst = dstTo
+
+	tFrom.UpdateTS(nil)
+	tTo.UpdateTS(nil)
+
+	diff := tFrom.Diff(tTo)
+	return tFrom, tTo, diff, nil
+}
+
 // Helper function to check diff results
 func checkDiff(t *testing.T, diff *timelib.RelTime, expY, expM, expD, expH, expI, expS, expUS int64) {
 	t.Helper()
@@ -282,4 +372,250 @@ func TestPhp78452(t *testing.T) {
 		t.Fatalf("Failed to parse: %v", err)
 	}
 	checkDiff(t, diff, 0, 1, 2, 23, 0, 0, 0)
+}
+
+func TestPhp80974(t *testing.T) {
+	_, _, diff, err := testParseTz("America/Toronto", "America/Vancouver", "2012-01-01 00:00", "2012-01-01 00:00")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 3, 0, 0, 0)
+}
+
+func TestPhp81273(t *testing.T) {
+	_, _, diff, err := testParseTz("Australia/Sydney", "America/Los_Angeles", "2000-01-01 00:00:00.000000", "2000-01-01 00:00:00.000000")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 19, 0, 0, 0)
+}
+
+func TestPhpGh8730(t *testing.T) {
+	_, _, diff, err := testParseOffset(-4*3600, -4*3600, "2022-06-08 09:15:00", "2022-06-08 09:15:00")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 0, 0, 0, 0)
+}
+
+func TestPhp81263a(t *testing.T) {
+	_, _, diff, err := testParseTz("Europe/Berlin", "UTC", "2020-07-19 18:30:00", "2020-07-19 16:30:00")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 0, 0, 0, 0)
+}
+
+func TestPhp81263b(t *testing.T) {
+	_, _, diff, err := testParseTz("UTC", "Europe/Berlin", "2020-07-19 16:30:00", "2020-07-19 18:30:00")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 0, 0, 0, 0)
+}
+
+func TestPhp80974a(t *testing.T) {
+	_, _, diff, err := testParseTz("America/Toronto", "America/Vancouver", "2012-01-01 00:00:00", "2012-01-01 00:00:00")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 3, 0, 0, 0)
+}
+
+func TestPhp80974b(t *testing.T) {
+	_, _, diff, err := testParseTz("America/Vancouver", "America/Toronto", "2012-01-01 00:00:00", "2012-01-01 00:00:00")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 3, 0, 0, 0)
+}
+
+func TestTimeSpringType2PrevType2Prev(t *testing.T) {
+	_, _, diff, err := testParseOffset(-4*3600, -4*3600, "2010-03-13 18:38:28", "2010-02-11 02:18:48")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 1, 2, 16, 19, 40, 0)
+}
+
+func TestTimeSpringType2PrevType2St(t *testing.T) {
+	_, _, diff, err := testParseOffset(-4*3600, -4*3600, "2010-03-14 00:10:20", "2010-03-13 18:38:28")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 5, 31, 52, 0)
+}
+
+func TestTimeSpringType2PrevType2Dt(t *testing.T) {
+	_, _, diff, err := testParseOffsetWithDst(-4*3600, 1, -4*3600, 0, "2010-03-14 03:16:55", "2010-03-13 18:38:28")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 7, 38, 27, 0)
+}
+
+func TestTimeSpringType2PrevType2Post(t *testing.T) {
+	_, _, diff, err := testParseOffsetWithDst(-4*3600, 1, -4*3600, 0, "2010-03-15 19:59:59", "2010-03-13 18:38:28")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 2, 0, 21, 31, 0)
+}
+
+func TestDateTimeAndDaylightSavingTimeType1Fd1(t *testing.T) {
+	_, _, diff, err := testParseOffset(-4*3600, -5*3600, "2010-03-14 03:00:00", "2010-03-14 01:59:59")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 0, 0, 1, 0)
+}
+
+func TestDateTimeAndDaylightSavingTimeType1Fd2(t *testing.T) {
+	_, _, diff, err := testParseOffset(-4*3600, -5*3600, "2010-03-14 04:30:00", "2010-03-13 04:30:00")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 23, 0, 0, 0)
+}
+
+func TestDateTimeAndDaylightSavingTimeType1Fd3(t *testing.T) {
+	_, _, diff, err := testParseOffset(-4*3600, -5*3600, "2010-03-14 03:30:00", "2010-03-13 04:30:00")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 22, 0, 0, 0)
+}
+
+func TestDateTimeAndDaylightSavingTimeType1Fd4(t *testing.T) {
+	_, _, diff, err := testParseOffset(-5*3600, -5*3600, "2010-03-14 01:30:00", "2010-03-13 04:30:00")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 21, 0, 0, 0)
+}
+
+func TestDateTimeAndDaylightSavingTimeType1Fd5(t *testing.T) {
+	_, _, diff, err := testParseOffset(-5*3600, -5*3600, "2010-03-14 01:30:00", "2010-03-13 01:30:00")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 1, 0, 0, 0, 0)
+}
+
+func TestDateTimeAndDaylightSavingTimeType1Fd6(t *testing.T) {
+	_, _, diff, err := testParseOffset(-4*3600, -5*3600, "2010-03-14 03:30:00", "2010-03-13 03:30:00")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 23, 0, 0, 0)
+}
+
+func TestDateTimeAndDaylightSavingTimeType1Fd7(t *testing.T) {
+	_, _, diff, err := testParseOffset(-4*3600, -5*3600, "2010-03-14 03:30:00", "2010-03-13 02:30:00")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 1, 0, 0, 0, 0)
+}
+
+func TestPhpGh9382(t *testing.T) {
+	_, _, diff, err := testParseOffset(2*3600, 2*3600, "2022-08-01 07:00:00", "2022-08-01 07:00:00")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 0, 0, 0, 0)
+}
+
+func TestGh75(t *testing.T) {
+	_, _, diff, err := testParseTz("PRC", "PRC", "2020-02-01 00:00:00", "2020-03-01 00:00:00")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 1, 0, 0, 0, 0, 0)
+}
+
+func TestPhpGh9699(t *testing.T) {
+	_, _, diff, err := testParseTz("America/Los_Angeles", "UTC", "2022-10-09 02:41:54.515330", "2022-10-10 08:41:54.534620")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 23, 0, 0, 19290)
+}
+
+func TestPhpGh9866(t *testing.T) {
+	_, _, diff, err := testParseTz("America/Chicago", "America/New_York", "2000-11-01 09:29:22.907606", "2022-06-06 11:00:00")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 21, 7, 4, 23, 30, 37, 92394)
+}
+
+func TestPhpGh9880a(t *testing.T) {
+	_, _, diff, err := testParseTz("America/Los_Angeles", "America/New_York", "2022-11-02 12:18:15", "2022-12-24 13:00:00")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 1, 21, 22, 41, 45, 0)
+	if diff.Invert {
+		t.Errorf("Expected Invert=false, got %v", diff.Invert)
+	}
+}
+
+func TestPhpGh9880b(t *testing.T) {
+	_, _, diff, err := testParseTz("America/New_York", "America/Los_Angeles", "2022-12-24 13:00:00", "2022-11-02 12:18:15")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 1, 21, 22, 41, 45, 0)
+	if !diff.Invert {
+		t.Errorf("Expected Invert=true, got %v", diff.Invert)
+	}
+}
+
+func TestTimeFallType3RedodtType3StFwd(t *testing.T) {
+	_, _, diff, err := testParse("America/New_York", "2010-11-07 01:12:33", "2010-11-07 03:16:55")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 3, 4, 22, 0)
+}
+
+func TestTimeFallType3RedodtType3StRev(t *testing.T) {
+	_, _, diff, err := testParse("America/New_York", "2010-11-07 03:16:55", "2010-11-07 01:12:33")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 3, 4, 22, 0)
+}
+
+func TestTimeFallType3DtsecType3Stsec(t *testing.T) {
+	_, _, diff, err := testParse("America/New_York", "2010-11-07 01:59:59", "2010-11-07 01:00:00")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 0, 59, 59, 0)
+}
+
+func TestTimeFallType2DtsecType2Stsec(t *testing.T) {
+	_, _, diff, err := testParse("America/New_York", "2010-11-07 01:59:59 EDT", "2010-11-07 01:00:00 EST")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 0, 0, 1, 0)
+}
+
+func TestTimeFallType3StsecType3Dtsec(t *testing.T) {
+	_, _, diff, err := testParse("America/New_York", "2010-11-07 01:00:00", "2010-11-07 01:59:59")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 0, 59, 59, 0)
+}
+
+func TestTimeFallType2StsecType2Dtsec(t *testing.T) {
+	_, _, diff, err := testParse("America/New_York", "2010-11-07 01:00:00 EST", "2010-11-07 01:59:59 EDT")
+	if err != nil {
+		t.Fatalf("Failed to parse: %v", err)
+	}
+	checkDiff(t, diff, 0, 0, 0, 0, 0, 1, 0)
 }

@@ -293,19 +293,19 @@ func TestTimeFallType3PrevType2Prev(t *testing.T) {
 	testAddWithTimezone(t, "America/New_York", "2010-10-04 02:18:48", "P0Y1M2DT16H19M40S", 2010, 11, 6, 18, 38, 28)
 }
 
-func TestTimeFallType3PrevType2Dtsec(t *testing.T) {
+func TestTimeFallType3PrevType2Dt(t *testing.T) {
 	testAddWithTimezone(t, "America/New_York", "2010-11-06 18:38:28", "P0Y0M0DT5H31M52S", 2010, 11, 7, 0, 10, 20)
 }
 
-func TestTimeFallType3PrevType2Redodtsec(t *testing.T) {
+func TestTimeFallType3PrevType2Redodt(t *testing.T) {
 	testAddWithTimezone(t, "America/New_York", "2010-11-06 18:38:28", "P0Y0M0DT6H34M5S", 2010, 11, 7, 1, 12, 33)
 }
 
-func TestTimeFallType3PrevType2Redostsec(t *testing.T) {
+func TestTimeFallType3PrevType2Redost(t *testing.T) {
 	testAddWithTimezone(t, "America/New_York", "2010-11-06 18:38:28", "P0Y0M0DT7H36M16S", 2010, 11, 7, 1, 14, 44)
 }
 
-func TestTimeFallType3PrevType2Stsec(t *testing.T) {
+func TestTimeFallType3PrevType2St(t *testing.T) {
 	testAddWithTimezone(t, "America/New_York", "2010-11-06 18:38:28", "P0Y0M0DT8H38M27S", 2010, 11, 7, 2, 16, 55)
 }
 
@@ -344,4 +344,400 @@ func TestAddBasic(t *testing.T) {
 	if result.Y != 2010 || result.M != 1 || result.D != 2 {
 		t.Errorf("Expected 2010-01-02, got %04d-%02d-%02d", result.Y, result.M, result.D)
 	}
+	}
+
+// ===== Offset-based Spring Tests (type2) =====
+
+func TestTimeSpringType2PrevType3Prev(t *testing.T) {
+	testAddWithOffset(t, -5*SECS_PER_HOUR, "2010-02-11 02:18:48", "P0Y1M2DT16H19M40S", 2010, 3, 13, 18, 38, 28)
+}
+
+func TestTimeSpringType2PrevType3St(t *testing.T) {
+	testAddWithOffset(t, -5*SECS_PER_HOUR, "2010-03-13 18:38:28", "P0Y0M0DT5H31M52S", 2010, 3, 14, 0, 10, 20)
+}
+
+func TestTimeSpringType2PrevType3Dt(t *testing.T) {
+	testAddWithOffset(t, -5*SECS_PER_HOUR, "2010-03-13 18:38:28", "P0Y0M0DT7H38M27S", 2010, 3, 14, 2, 16, 55)
+}
+
+func TestTimeSpringType2PrevType3Post(t *testing.T) {
+	testAddWithOffset(t, -5*SECS_PER_HOUR, "2010-03-13 18:38:28", "P0Y0M2DT1H21M31S", 2010, 3, 15, 19, 59, 59)
+}
+
+func TestTimeSpringType2StType3Prev(t *testing.T) {
+	testAddWithOffset(t, -5*SECS_PER_HOUR, "2010-03-14 00:10:20", "-P0Y0M0DT5H31M52S", 2010, 3, 13, 18, 38, 28)
+}
+
+func TestTimeSpringType2StType3St(t *testing.T) {
+	testAddWithOffset(t, -5*SECS_PER_HOUR, "2010-03-14 00:10:20", "P0Y0M0DT0H5M15S", 2010, 3, 14, 0, 15, 35)
+}
+
+func TestTimeSpringType2StType3Dt(t *testing.T) {
+	testAddWithOffset(t, -5*SECS_PER_HOUR, "2010-03-14 00:10:20", "P0Y0M0DT2H6M35S", 2010, 3, 14, 2, 16, 55)
+}
+
+func TestTimeSpringType2StType3Post(t *testing.T) {
+	testAddWithOffset(t, -5*SECS_PER_HOUR, "2010-03-14 00:10:20", "P0Y0M1DT18H49M39S", 2010, 3, 15, 18, 59, 59)
+}
+
+func TestTimeSpringType2DtType3Prev(t *testing.T) {
+	testAddWithOffset(t, -4*SECS_PER_HOUR, "2010-03-14 03:16:55", "-P0Y0M0DT7H38M27S", 2010, 3, 13, 19, 38, 28)
+}
+
+func TestTimeSpringType2DtType3St(t *testing.T) {
+	testAddWithOffset(t, -4*SECS_PER_HOUR, "2010-03-14 03:16:55", "-P0Y0M0DT2H6M35S", 2010, 3, 14, 1, 10, 20)
+}
+
+func TestTimeSpringType2DtType3Dt(t *testing.T) {
+	testAddWithOffset(t, -4*SECS_PER_HOUR, "2010-03-14 03:16:55", "P0Y0M0DT2H3M1S", 2010, 3, 14, 5, 19, 56)
+}
+
+func TestTimeSpringType2DtType3Post(t *testing.T) {
+	testAddWithOffset(t, -4*SECS_PER_HOUR, "2010-03-14 03:16:55", "P0Y0M1DT16H43M4S", 2010, 3, 15, 19, 59, 59)
+}
+
+func TestTimeSpringType2PostType3Prev(t *testing.T) {
+	testAddWithOffset(t, -4*SECS_PER_HOUR, "2010-03-15 19:59:59", "-P0Y0M2DT1H21M31S", 2010, 3, 13, 18, 38, 28)
+}
+
+func TestTimeSpringType2PostType3St(t *testing.T) {
+	testAddWithOffset(t, -4*SECS_PER_HOUR, "2010-03-15 19:59:59", "-P0Y0M1DT18H49M39S", 2010, 3, 14, 1, 10, 20)
+}
+
+func TestTimeSpringType2PostType3Dt(t *testing.T) {
+	testAddWithOffset(t, -4*SECS_PER_HOUR, "2010-03-15 19:59:59", "-P0Y0M1DT16H43M4S", 2010, 3, 14, 3, 16, 55)
+}
+
+func TestTimeSpringType2PostType3Post(t *testing.T) {
+	testAddWithOffset(t, -4*SECS_PER_HOUR, "2010-03-15 18:57:55", "P0Y0M0DT1H2M4S", 2010, 3, 15, 19, 59, 59)
+}
+
+func TestTimeSpringType2StsecType3Dtsec(t *testing.T) {
+	testAddWithOffset(t, -5*SECS_PER_HOUR, "2010-03-14 01:59:59", "P0Y0M0DT0H0M1S", 2010, 3, 14, 2, 0, 0)
+}
+
+func TestTimeSpringType2DtsecType3Stsec(t *testing.T) {
+	testAddWithOffset(t, -4*SECS_PER_HOUR, "2010-03-14 03:00:00", "-P0Y0M0DT0H0M1S", 2010, 3, 14, 2, 59, 59)
+}
+
+// ===== Timezone-based Fall Tests (type3) - Remaining tests =====
+
+func TestTimeFallType3DtType2Prev(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 00:10:20", "-P0Y0M0DT5H31M52S", 2010, 11, 6, 18, 38, 28)
+}
+
+func TestTimeFallType3DtType2Dt(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 00:10:20", "P0Y0M0DT0H5M15S", 2010, 11, 7, 0, 15, 35)
+}
+
+func TestTimeFallType3DtType2Redodt(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 00:10:20", "P0Y0M0DT1H2M13S", 2010, 11, 7, 1, 12, 33)
+}
+
+func TestTimeFallType3DtType2Redost(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 00:10:20", "P0Y0M0DT2H4M24S", 2010, 11, 7, 1, 14, 44)
+}
+
+func TestTimeFallType3DtType2St(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 00:10:20", "P0Y0M0DT4H6M35S", 2010, 11, 7, 3, 16, 55)
+}
+
+func TestTimeFallType3DtType2Post(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 00:10:20", "P0Y0M1DT20H49M39S", 2010, 11, 8, 20, 59, 59)
+}
+
+func TestTimeFallType3RedodtType2Prev(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:12:33", "-P0Y0M0DT6H34M5S", 2010, 11, 6, 18, 38, 28)
+}
+
+func TestTimeFallType3RedodtType2Dt(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:12:33", "-P0Y0M0DT1H2M13S", 2010, 11, 7, 0, 10, 20)
+}
+
+func TestTimeFallType3RedodtType2Redodt(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:12:33", "P0Y0M0DT0H3M2S", 2010, 11, 7, 1, 15, 35)
+}
+
+func TestTimeFallType3RedodtType2Redost(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:12:33", "P0Y0M0DT1H2M11S", 2010, 11, 7, 1, 14, 44)
+}
+
+func TestTimeFallType3RedodtType2St(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:12:33", "P0Y0M0DT3H4M22S", 2010, 11, 7, 3, 16, 55)
+}
+
+func TestTimeFallType3RedodtType2Post(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:12:33", "P0Y0M1DT19H47M26S", 2010, 11, 8, 20, 59, 59)
+}
+
+func TestTimeFallType3RedostType2Prev(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:14:44", "-P0Y0M0DT7H36M16S", 2010, 11, 6, 17, 38, 28)
+}
+
+func TestTimeFallType3RedostType2Dt(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:14:44", "-P0Y0M0DT2H4M24S", 2010, 11, 6, 23, 10, 20)
+}
+
+func TestTimeFallType3RedostType2Redodt(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:14:44", "-P0Y0M0DT1H2M11S", 2010, 11, 7, 0, 12, 33)
+}
+
+func TestTimeFallType3RedostType2Redost(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:14:44", "P0Y0M0DT0H2M10S", 2010, 11, 7, 1, 16, 54)
+}
+
+func TestTimeFallType3RedostType2St0(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:14:44", "P0Y0M0DT0H2M11S", 2010, 11, 7, 1, 16, 55)
+}
+
+func TestTimeFallType3RedostType2St1(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:14:44", "P0Y0M0DT1H2M11S", 2010, 11, 7, 1, 16, 55)
+}
+
+func TestTimeFallType3RedostType2St2(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:14:44", "P0Y0M0DT2H2M11S", 2010, 11, 7, 2, 16, 55)
+}
+
+func TestTimeFallType3RedostType2St3(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:14:44", "P0Y0M0DT3H2M11S", 2010, 11, 7, 3, 16, 55)
+}
+
+func TestTimeFallType3RedostType2St4(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:14:44", "P0Y0M0DT4H2M11S", 2010, 11, 7, 4, 16, 55)
+}
+
+func TestTimeFallType3RedostType2St23(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:14:44", "P0Y0M0DT23H2M11S", 2010, 11, 7, 23, 16, 55)
+}
+
+func TestTimeFallType3RedostType2St24(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:14:44", "P0Y0M0DT24H2M11S", 2010, 11, 8, 0, 16, 55)
+}
+
+func TestTimeFallType3RedostType2St25(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:14:44", "P0Y0M0DT25H2M11S", 2010, 11, 8, 1, 16, 55)
+}
+
+func TestTimeFallType3RedostType2St26(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:14:44", "P0Y0M0DT26H2M11S", 2010, 11, 8, 2, 16, 55)
+}
+
+func TestTimeFallType3RedostType2St1_0(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:14:44", "P0Y0M1DT0H2M11S", 2010, 11, 8, 1, 16, 55)
+}
+
+func TestTimeFallType3RedostType2St1_1(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:14:44", "P0Y0M1DT1H2M11S", 2010, 11, 8, 2, 16, 55)
+}
+
+func TestTimeFallType3RedostType2St1_2(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:14:44", "P0Y0M1DT2H2M11S", 2010, 11, 8, 3, 16, 55)
+}
+
+func TestTimeFallType3RedostType2Post(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:14:44", "P0Y0M1DT18H45M15S", 2010, 11, 8, 19, 59, 59)
+}
+
+func TestTimeFallType3StType2Prev(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 03:16:55", "-P0Y0M0DT9H38M27S", 2010, 11, 6, 18, 38, 28)
+}
+
+func TestTimeFallType3StType2Dt(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 03:16:55", "-P0Y0M0DT4H6M35S", 2010, 11, 7, 0, 10, 20)
+}
+
+func TestTimeFallType3StType2Redodt(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 03:16:55", "-P0Y0M0DT3H4M22S", 2010, 11, 7, 1, 12, 33)
+}
+
+func TestTimeFallType3StType2Redost(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 03:16:55", "-P0Y0M0DT2H2M11S", 2010, 11, 7, 1, 14, 44)
+}
+
+func TestTimeFallType3StType2St(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 03:16:55", "P0Y0M0DT2H3M1S", 2010, 11, 7, 5, 19, 56)
+}
+
+func TestTimeFallType3StType2Post(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 03:16:55", "P0Y0M1DT16H43M4S", 2010, 11, 8, 19, 59, 59)
+}
+
+func TestTimeFallType3PostType2Prev(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-08 19:59:59", "-P0Y0M2DT1H21M31S", 2010, 11, 6, 18, 38, 28)
+}
+
+func TestTimeFallType3PostType2Dt(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-08 19:59:59", "-P0Y0M1DT20H49M39S", 2010, 11, 7, 0, 10, 20)
+}
+
+func TestTimeFallType3PostType2Redodt(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-08 19:59:59", "-P0Y0M1DT19H47M26S", 2010, 11, 7, 1, 12, 33)
+}
+
+func TestTimeFallType3PostType2Redost(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-08 19:59:59", "-P0Y0M1DT18H45M15S", 2010, 11, 7, 1, 14, 44)
+}
+
+func TestTimeFallType3PostType2St(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-08 19:59:59", "-P0Y0M1DT16H43M4S", 2010, 11, 7, 3, 16, 55)
+}
+
+func TestTimeFallType3PostType2Post(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-08 18:57:55", "P0Y0M0DT1H2M4S", 2010, 11, 8, 19, 59, 59)
+}
+
+func TestTimeFallType3DtsecType2Stsec(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:59:59", "P0Y0M0DT0H0M1S", 2010, 11, 7, 1, 0, 0)
+}
+
+func TestTimeFallType3StsecType2Dtsec(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-11-07 01:00:00", "-P0Y0M0DT0H0M1S", 2010, 11, 7, 0, 59, 59)
+}
+
+// ===== Timezone-based Spring Tests type3_prev_type2 =====
+
+func TestTimeSpringType3PrevType2Prev(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-02-11 02:18:48", "P0Y1M2DT16H19M40S", 2010, 3, 13, 18, 38, 28)
+}
+
+func TestTimeSpringType3PrevType2St(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-13 18:38:28", "P0Y0M0DT5H31M52S", 2010, 3, 14, 0, 10, 20)
+}
+
+func TestTimeSpringType3PrevType2Dt(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-13 18:38:28", "P0Y0M0DT7H38M27S", 2010, 3, 14, 3, 16, 55)
+}
+
+func TestTimeSpringType3PrevType2Post(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-13 18:38:28", "P0Y0M2DT1H21M31S", 2010, 3, 15, 19, 59, 59)
+}
+
+func TestTimeSpringType3StType2Prev(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-14 00:10:20", "-P0Y0M0DT5H31M52S", 2010, 3, 13, 18, 38, 28)
+}
+
+func TestTimeSpringType3StType2St(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-14 00:10:20", "P0Y0M0DT0H5M15S", 2010, 3, 14, 0, 15, 35)
+}
+
+func TestTimeSpringType3StType2Dt(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-14 00:10:20", "P0Y0M0DT2H6M35S", 2010, 3, 14, 3, 16, 55)
+}
+
+func TestTimeSpringType3StType2Post(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-14 00:10:20", "P0Y0M1DT18H49M39S", 2010, 3, 15, 18, 59, 59)
+}
+
+func TestTimeSpringType3DtType2Prev(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-14 03:16:55", "-P0Y0M0DT7H38M27S", 2010, 3, 13, 18, 38, 28)
+}
+
+func TestTimeSpringType3DtType2St(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-14 03:16:55", "-P0Y0M0DT2H6M35S", 2010, 3, 14, 0, 10, 20)
+}
+
+func TestTimeSpringType3DtType2Dt(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-14 03:16:55", "P0Y0M0DT2H3M1S", 2010, 3, 14, 5, 19, 56)
+}
+
+func TestTimeSpringType3DtType2Post(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-14 03:16:55", "P0Y0M1DT16H43M4S", 2010, 3, 15, 19, 59, 59)
+}
+
+func TestTimeSpringType3PostType2Prev(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-15 19:59:59", "-P0Y0M2DT1H21M31S", 2010, 3, 13, 18, 38, 28)
+}
+
+func TestTimeSpringType3PostType2St(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-15 19:59:59", "-P0Y0M1DT18H49M39S", 2010, 3, 14, 0, 10, 20)
+}
+
+func TestTimeSpringType3PostType2Dt(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-15 19:59:59", "-P0Y0M1DT16H43M4S", 2010, 3, 14, 3, 16, 55)
+}
+
+func TestTimeSpringType3PostType2Post(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-15 18:57:55", "P0Y0M0DT1H2M4S", 2010, 3, 15, 19, 59, 59)
+}
+
+func TestTimeSpringType3StsecType2Dtsec(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-14 01:59:59", "P0Y0M0DT0H0M1S", 2010, 3, 14, 3, 0, 0)
+}
+
+func TestTimeSpringType3DtsecType2Stsec(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-14 03:00:00", "-P0Y0M0DT0H0M1S", 2010, 3, 14, 1, 59, 59)
+}
+
+// ===== Timezone-based Spring Tests type3_prev_type3 =====
+
+func TestTimeSpringType3PrevType3Prev(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-02-11 02:18:48", "P0Y1M2DT16H19M40S", 2010, 3, 13, 18, 38, 28)
+}
+
+func TestTimeSpringType3PrevType3St(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-13 18:38:28", "P0Y0M0DT5H31M52S", 2010, 3, 14, 0, 10, 20)
+}
+
+func TestTimeSpringType3PrevType3Dt(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-13 18:38:28", "P0Y0M0DT7H38M27S", 2010, 3, 14, 3, 16, 55)
+}
+
+func TestTimeSpringType3PrevType3Post(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-13 18:38:28", "P0Y0M2DT1H21M31S", 2010, 3, 15, 19, 59, 59)
+}
+
+func TestTimeSpringType3StType3Prev(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-14 00:10:20", "-P0Y0M0DT5H31M52S", 2010, 3, 13, 18, 38, 28)
+}
+
+func TestTimeSpringType3StType3St(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-14 00:10:20", "P0Y0M0DT0H5M15S", 2010, 3, 14, 0, 15, 35)
+}
+
+func TestTimeSpringType3StType3Dt(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-14 00:10:20", "P0Y0M0DT2H6M35S", 2010, 3, 14, 3, 16, 55)
+}
+
+func TestTimeSpringType3StType3Post(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-14 00:10:20", "P0Y0M1DT18H49M39S", 2010, 3, 15, 18, 59, 59)
+}
+
+func TestTimeSpringType3DtType3Prev(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-14 03:16:55", "-P0Y0M0DT7H38M27S", 2010, 3, 13, 18, 38, 28)
+}
+
+func TestTimeSpringType3DtType3St(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-14 03:16:55", "-P0Y0M0DT2H6M35S", 2010, 3, 14, 0, 10, 20)
+}
+
+func TestTimeSpringType3DtType3Dt(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-14 03:16:55", "P0Y0M0DT2H3M1S", 2010, 3, 14, 5, 19, 56)
+}
+
+func TestTimeSpringType3DtType3Post(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-14 03:16:55", "P0Y0M1DT16H43M4S", 2010, 3, 15, 19, 59, 59)
+}
+
+func TestTimeSpringType3PostType3Prev(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-15 19:59:59", "-P0Y0M2DT1H21M31S", 2010, 3, 13, 18, 38, 28)
+}
+
+func TestTimeSpringType3PostType3St(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-15 19:59:59", "-P0Y0M1DT18H49M39S", 2010, 3, 14, 0, 10, 20)
+}
+
+func TestTimeSpringType3PostType3Dt(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-15 19:59:59", "-P0Y0M1DT16H43M4S", 2010, 3, 14, 3, 16, 55)
+}
+
+func TestTimeSpringType3PostType3Post(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-15 18:57:55", "P0Y0M0DT1H2M4S", 2010, 3, 15, 19, 59, 59)
+}
+
+func TestTimeSpringType3StsecType3Dtsec(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-14 01:59:59", "P0Y0M0DT0H0M1S", 2010, 3, 14, 3, 0, 0)
+}
+
+func TestTimeSpringType3DtsecType3Stsec(t *testing.T) {
+	testAddWithTimezone(t, "America/New_York", "2010-03-14 03:00:00", "-P0Y0M0DT0H0M1S", 2010, 3, 14, 1, 59, 59)
 }

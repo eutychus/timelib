@@ -384,8 +384,12 @@ func TimeCtor() *Time {
 		S:        TIMELIB_UNSET,
 		US:       0,
 		Z:        0,
-		Dst:      0, // Changed from -1 to match C calloc behavior (zero-initialized)
+		Dst:      0,
 		ZoneType: TIMELIB_ZONETYPE_NONE,
+		Relative: RelTime{
+			Weekday: -1,
+			Week:    -1,
+		},
 	}
 }
 
@@ -607,8 +611,51 @@ func SetTimezone(t *Time, tz *TzInfo) {
 
 // ConvertTime converts a Time structure to Go's time.Time
 func ConvertTime(t *Time) time.Time {
-	// For now, return zero time - this will be implemented later
-	return time.Time{}
+	if t == nil {
+		return time.Time{}
+	}
+
+	var loc *time.Location
+	if t.TzInfo != nil && t.TzInfo.Name != "" {
+		var err error
+		loc, err = time.LoadLocation(t.TzInfo.Name)
+		if err != nil {
+			loc = time.FixedZone(t.TzAbbr, int(t.Z))
+		}
+	} else if t.Z != 0 || t.TzAbbr != "" {
+		loc = time.FixedZone(t.TzAbbr, int(t.Z))
+	} else {
+		loc = time.UTC
+	}
+
+	year := int(t.Y)
+	month := int(t.M)
+	day := int(t.D)
+	hour := int(t.H)
+	minute := int(t.I)
+	second := int(t.S)
+	nsec := int(t.US * 1000)
+
+	if year == TIMELIB_UNSET {
+		year = 1970
+	}
+	if month == TIMELIB_UNSET || month < 1 || month > 12 {
+		month = 1
+	}
+	if day == TIMELIB_UNSET || day < 1 || day > 31 {
+		day = 1
+	}
+	if hour == TIMELIB_UNSET || hour < 0 || hour > 23 {
+		hour = 0
+	}
+	if minute == TIMELIB_UNSET || minute < 0 || minute > 59 {
+		minute = 0
+	}
+	if second == TIMELIB_UNSET || second < 0 || second > 59 {
+		second = 0
+	}
+
+	return time.Date(year, time.Month(month), day, hour, minute, second, nsec, loc)
 }
 
 // Helper functions and lookup tables for date calculations
@@ -851,6 +898,38 @@ func DateFromIsoDate(iy, iw, id int64) (y, m, d int64) {
 
 // ConvertFromTime converts Go's time.Time to a Time structure
 func ConvertFromTime(t time.Time) *Time {
-	// For now, return basic structure - this will be implemented later
-	return TimeCtor()
+	result := TimeCtor()
+
+	if t.IsZero() {
+		return result
+	}
+
+	result.Y = int64(t.Year())
+	result.M = int64(t.Month())
+	result.D = int64(t.Day())
+	result.H = int64(t.Hour())
+	result.I = int64(t.Minute())
+	result.S = int64(t.Second())
+	result.US = int64(t.Nanosecond()) / 1000
+
+	result.HaveDate = true
+	result.HaveTime = true
+	result.TimUptodate = true
+
+	_, offset := t.Zone()
+	result.Z = int32(offset)
+
+	abbr := t.Location().String()
+	result.TzAbbr = abbr
+	result.HaveZone = true
+
+	if t.Location() == time.UTC {
+		result.ZoneType = TIMELIB_ZONETYPE_ID
+		result.TzInfo = &TzInfo{Name: "UTC"}
+	}
+
+	result.Sse = t.Unix()
+	result.SseUptodate = true
+
+	return result
 }

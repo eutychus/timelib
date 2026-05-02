@@ -302,18 +302,20 @@ func TimezoneIDFromAbbr(abbr string, gmtoffset int64, isDst int) string {
 
 // TimezoneAbbreviationsList returns known timezone abbreviations
 func TimezoneAbbreviationsList() []TzLookupTable {
-	// This would return the actual timezone abbreviations list
-	// For now, return a basic list with common abbreviations
-	return []TzLookupTable{
-		{Name: "UTC", Type: TIMELIB_ZONETYPE_OFFSET, GmtOffset: 0, FullTzName: "UTC"},
-		{Name: "GMT", Type: TIMELIB_ZONETYPE_OFFSET, GmtOffset: 0, FullTzName: "GMT"},
-		{Name: "EST", Type: TIMELIB_ZONETYPE_OFFSET, GmtOffset: -5 * 3600, FullTzName: "America/New_York"},
-		{Name: "EDT", Type: TIMELIB_ZONETYPE_OFFSET, GmtOffset: -4 * 3600, FullTzName: "America/New_York"},
-		{Name: "CST", Type: TIMELIB_ZONETYPE_OFFSET, GmtOffset: -6 * 3600, FullTzName: "America/Chicago"},
-		{Name: "CDT", Type: TIMELIB_ZONETYPE_OFFSET, GmtOffset: -5 * 3600, FullTzName: "America/Chicago"},
-		{Name: "PST", Type: TIMELIB_ZONETYPE_OFFSET, GmtOffset: -8 * 3600, FullTzName: "America/Los_Angeles"},
-		{Name: "PDT", Type: TIMELIB_ZONETYPE_OFFSET, GmtOffset: -7 * 3600, FullTzName: "America/Los_Angeles"},
+	result := make([]TzLookupTable, len(TimezoneAbbreviationTable))
+	for i, abbr := range TimezoneAbbreviationTable {
+		type_ := TIMELIB_ZONETYPE_ABBR
+		if abbr.TzID != "" {
+			type_ = TIMELIB_ZONETYPE_ID
+		}
+		result[i] = TzLookupTable{
+			Name:       abbr.Abbr,
+			Type:       type_,
+			GmtOffset:  float32(abbr.OffsetSec),
+			FullTzName: abbr.TzID,
+		}
 	}
+	return result
 }
 
 // DumpTzinfo displays debugging information about timezone info

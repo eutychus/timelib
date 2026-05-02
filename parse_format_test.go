@@ -463,7 +463,7 @@ func TestParseFromFormatTime(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 0, d: 0, h: 1, i: 0, s: 3, us: 0, z: 0},
+			}{y: TIMELIB_UNSET, m: TIMELIB_UNSET, d: TIMELIB_UNSET, h: 1, i: 0, s: 3, us: 0, z: 0},
 			desc: "12-hour time with am",
 		},
 		{
@@ -478,7 +478,7 @@ func TestParseFromFormatTime(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 0, d: 0, h: 13, i: 3, s: 12, us: 0, z: 0},
+			}{y: TIMELIB_UNSET, m: TIMELIB_UNSET, d: TIMELIB_UNSET, h: 13, i: 3, s: 12, us: 0, z: 0},
 			desc: "12-hour time with pm",
 		},
 		{
@@ -493,7 +493,7 @@ func TestParseFromFormatTime(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 0, d: 0, h: 0, i: 31, s: 13, us: 0, z: 0},
+			}{y: TIMELIB_UNSET, m: TIMELIB_UNSET, d: TIMELIB_UNSET, h: 0, i: 31, s: 13, us: 0, z: 0},
 			desc: "12-hour time with A.M.",
 		},
 		{
@@ -508,7 +508,7 @@ func TestParseFromFormatTime(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 0, d: 0, h: 20, i: 13, s: 14, us: 0, z: 0},
+			}{y: TIMELIB_UNSET, m: TIMELIB_UNSET, d: TIMELIB_UNSET, h: 20, i: 13, s: 14, us: 0, z: 0},
 			desc: "12-hour time with P.M.",
 		},
 		{
@@ -523,7 +523,7 @@ func TestParseFromFormatTime(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 0, d: 0, h: 11, i: 59, s: 15, us: 0, z: 0},
+			}{y: TIMELIB_UNSET, m: TIMELIB_UNSET, d: TIMELIB_UNSET, h: 11, i: 59, s: 15, us: 0, z: 0},
 			desc: "12-hour time with AM",
 		},
 		{
@@ -538,7 +538,7 @@ func TestParseFromFormatTime(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 0, d: 0, h: 18, i: 12, s: 16, us: 0, z: 0},
+			}{y: TIMELIB_UNSET, m: TIMELIB_UNSET, d: TIMELIB_UNSET, h: 18, i: 12, s: 16, us: 0, z: 0},
 			desc: "12-hour time with PM",
 		},
 		{
@@ -553,7 +553,7 @@ func TestParseFromFormatTime(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 0, d: 0, h: 7, i: 8, s: 17, us: 0, z: 0},
+			}{y: TIMELIB_UNSET, m: TIMELIB_UNSET, d: TIMELIB_UNSET, h: 7, i: 8, s: 17, us: 0, z: 0},
 			desc: "12-hour time with lowercase am",
 		},
 		{
@@ -568,7 +568,7 @@ func TestParseFromFormatTime(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 0, d: 0, h: 20, i: 9, s: 18, us: 0, z: 0},
+			}{y: TIMELIB_UNSET, m: TIMELIB_UNSET, d: TIMELIB_UNSET, h: 20, i: 9, s: 18, us: 0, z: 0},
 			desc: "12-hour time with lowercase p.m.",
 		},
 		{
@@ -583,7 +583,7 @@ func TestParseFromFormatTime(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 0, d: 0, h: 1, i: 0, s: 3, us: 0, z: 0},
+			}{y: TIMELIB_UNSET, m: TIMELIB_UNSET, d: TIMELIB_UNSET, h: 1, i: 0, s: 3, us: 0, z: 0},
 			desc: "12-hour time with dots and am",
 		},
 		{
@@ -598,7 +598,7 @@ func TestParseFromFormatTime(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 0, d: 0, h: 13, i: 3, s: 12, us: 0, z: 0},
+			}{y: TIMELIB_UNSET, m: TIMELIB_UNSET, d: TIMELIB_UNSET, h: 13, i: 3, s: 12, us: 0, z: 0},
 			desc: "12-hour time with dots and pm",
 		},
 		{
@@ -613,7 +613,7 @@ func TestParseFromFormatTime(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 0, d: 0, h: 0, i: 31, s: 13, us: 0, z: 0},
+			}{y: TIMELIB_UNSET, m: TIMELIB_UNSET, d: TIMELIB_UNSET, h: 0, i: 31, s: 13, us: 0, z: 0},
 			desc: "12-hour time with dots and A.M.",
 		},
 		{
@@ -628,7 +628,7 @@ func TestParseFromFormatTime(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 0, d: 0, h: 20, i: 13, s: 14, us: 0, z: 0},
+			}{y: TIMELIB_UNSET, m: TIMELIB_UNSET, d: TIMELIB_UNSET, h: 20, i: 13, s: 14, us: 0, z: 0},
 			desc: "12-hour time with dots and P.M.",
 		},
 		{
@@ -643,7 +643,7 @@ func TestParseFromFormatTime(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 0, d: 0, h: 11, i: 59, s: 15, us: 0, z: 0},
+			}{y: TIMELIB_UNSET, m: TIMELIB_UNSET, d: TIMELIB_UNSET, h: 11, i: 59, s: 15, us: 0, z: 0},
 			desc: "12-hour time with dots and AM",
 		},
 		{
@@ -658,7 +658,7 @@ func TestParseFromFormatTime(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 0, d: 0, h: 18, i: 12, s: 16, us: 0, z: 0},
+			}{y: TIMELIB_UNSET, m: TIMELIB_UNSET, d: TIMELIB_UNSET, h: 18, i: 12, s: 16, us: 0, z: 0},
 			desc: "12-hour time with dots and PM",
 		},
 		{
@@ -673,7 +673,7 @@ func TestParseFromFormatTime(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 0, d: 0, h: 7, i: 8, s: 17, us: 0, z: 0},
+			}{y: TIMELIB_UNSET, m: TIMELIB_UNSET, d: TIMELIB_UNSET, h: 7, i: 8, s: 17, us: 0, z: 0},
 			desc: "12-hour time with dots and tab am",
 		},
 		{
@@ -688,7 +688,7 @@ func TestParseFromFormatTime(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 0, d: 0, h: 20, i: 9, s: 18, us: 0, z: 0},
+			}{y: TIMELIB_UNSET, m: TIMELIB_UNSET, d: TIMELIB_UNSET, h: 20, i: 9, s: 18, us: 0, z: 0},
 			desc: "12-hour time with dots and tab p.m.",
 		},
 	}
@@ -758,7 +758,7 @@ func TestParseFromFormatMicroseconds(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 0, d: 0, h: 1, i: 0, s: 3, us: 123450, z: 0},
+			}{y: TIMELIB_UNSET, m: TIMELIB_UNSET, d: TIMELIB_UNSET, h: 1, i: 0, s: 3, us: 123450, z: 0},
 			desc: "Microseconds with 5 digits",
 		},
 		{
@@ -773,7 +773,7 @@ func TestParseFromFormatMicroseconds(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 0, d: 0, h: 13, i: 3, s: 12, us: 456780, z: 0},
+			}{y: TIMELIB_UNSET, m: TIMELIB_UNSET, d: TIMELIB_UNSET, h: 13, i: 3, s: 12, us: 456780, z: 0},
 			desc: "Microseconds with 5 digits different time",
 		},
 		{
@@ -1728,7 +1728,7 @@ func TestParseFromFormatCombined(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 5, d: 18, h: 5, i: 5, s: 0, us: 0, z: 0}, // UTC = 0 seconds
+			}{y: TIMELIB_UNSET, m: 5, d: 18, h: 5, i: 5, s: 0, us: 0, z: 0}, // UTC = 0 seconds
 			desc: "Date with ordinal suffix and UTC timezone",
 		},
 		{
@@ -1743,7 +1743,7 @@ func TestParseFromFormatCombined(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 5, d: 18, h: 17, i: 5, s: 0, us: 0, z: 0}, // UTC = 0 seconds, 5pm = 17:00
+			}{y: TIMELIB_UNSET, m: 5, d: 18, h: 17, i: 5, s: 0, us: 0, z: 0}, // UTC = 0 seconds, 5pm = 17:00
 			desc: "Date with ordinal suffix, PM time and UTC timezone",
 		},
 		{
@@ -1758,7 +1758,7 @@ func TestParseFromFormatCombined(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 5, d: 18, h: 17, i: 5, s: 0, us: 0, z: 0}, // UTC = 0 seconds, 5 pm = 17:00
+			}{y: TIMELIB_UNSET, m: 5, d: 18, h: 17, i: 5, s: 0, us: 0, z: 0}, // UTC = 0 seconds, 5 pm = 17:00
 			desc: "Date with ordinal suffix, PM time with space and UTC timezone",
 		},
 		{
@@ -1773,7 +1773,7 @@ func TestParseFromFormatCombined(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 5, d: 18, h: 5, i: 5, s: 0, us: 0, z: 0}, // UTC = 0 seconds, 5am = 05:00
+			}{y: TIMELIB_UNSET, m: 5, d: 18, h: 5, i: 5, s: 0, us: 0, z: 0}, // UTC = 0 seconds, 5am = 05:00
 			desc: "Date with ordinal suffix, AM time and UTC timezone",
 		},
 		{
@@ -1788,7 +1788,7 @@ func TestParseFromFormatCombined(t *testing.T) {
 				s  int64
 				us int64
 				z  int32
-			}{y: 0, m: 5, d: 18, h: 5, i: 5, s: 0, us: 0, z: 0}, // UTC = 0 seconds, 5 am = 05:00
+			}{y: TIMELIB_UNSET, m: 5, d: 18, h: 5, i: 5, s: 0, us: 0, z: 0}, // UTC = 0 seconds, 5 am = 05:00
 			desc: "Date with ordinal suffix, AM time with space and UTC timezone",
 		},
 		{
@@ -1868,25 +1868,25 @@ func TestParseFromFormatErrorHandling(t *testing.T) {
 			input:       "2018/01/26",
 			format:      "B/m/d",
 			desc:        "Cannot mix ISO with natural format - currently accepts it",
-			expectError: false, // Current implementation is more lenient
+			expectError: true,
 		},
 		{
 			input:       "11 Mar 2013 PM 3:34",
 			format:      "d M Y A h:i",
 			desc:        "Cannot have meridian before hour - currently accepts it",
-			expectError: false, // Current implementation is more lenient
+			expectError: true,
 		},
 		{
 			input:       "11 Mar 2013 PM",
 			format:      "d M Y A",
 			desc:        "Cannot have meridian without hour - currently accepts it",
-			expectError: false, // Current implementation is more lenient
+			expectError: true,
 		},
 		{
 			input:       "60 2020",
 			format:      "z Y",
 			desc:        "Cannot have DOY before year - currently accepts it",
-			expectError: false, // Current implementation is more lenient
+			expectError: true,
 		},
 	}
 
@@ -2005,8 +2005,8 @@ func TestParseFromFormatEdgeCases(t *testing.T) {
 				m int64
 				d int64
 			}{y: 0, m: 0, d: 0},
-			desc:        "Zero date (bug 41523) - currently rejects zero month/day",
-			expectError: true, // Current implementation rejects zero month/day
+			desc:        "Zero date (bug 41523)",
+			expectError: false,
 		},
 		{
 			input:  "0001-00-00",
@@ -2016,8 +2016,8 @@ func TestParseFromFormatEdgeCases(t *testing.T) {
 				m int64
 				d int64
 			}{y: 1, m: 0, d: 0},
-			desc:        "Year 1 with zero month/day (bug 41523) - currently rejects zero month/day",
-			expectError: true, // Current implementation rejects zero month/day
+			desc:        "Year 1 with zero month/day (bug 41523)",
+			expectError: false,
 		},
 		{
 			input:  "00-00-00",
@@ -2027,8 +2027,8 @@ func TestParseFromFormatEdgeCases(t *testing.T) {
 				m int64
 				d int64
 			}{y: 2000, m: 0, d: 0},
-			desc:        "Two-digit year zero date (bug 41523) - currently rejects zero month/day",
-			expectError: true, // Current implementation rejects zero month/day
+			desc:        "Two-digit year zero date (bug 41523)",
+			expectError: false,
 		},
 		{
 			input:  "0000-01-01",

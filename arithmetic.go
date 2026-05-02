@@ -122,135 +122,170 @@ func (t *Time) Sub(interval *RelTime) *Time {
 	return result
 }
 
-// Diff calculates the difference between two times.
-// The result is a timelib_rel_time structure that describes how you can
-// convert from 'one' to 'two' with 'timelib_add'. This does *not* necessarily
-// mean that you can go from 'two' to 'one' by using 'timelib_sub' due to the
-// way months and days are calculated.
-func (t *Time) Diff(other *Time) *RelTime {
-	// Determine if we need to invert the result
-	if TimeCompare(t, other) > 0 {
-		// t is after other, so we need to calculate the difference in reverse
-		// and mark it as inverted
-		temp := &RelTime{}
-
-		// Calculate differences in reverse (t is after other)
-		temp.Y = t.Y - other.Y
-		temp.M = t.M - other.M
-		temp.D = t.D - other.D
-		temp.H = t.H - other.H
-		temp.I = t.I - other.I
-		temp.S = t.S - other.S
-		temp.US = t.US - other.US
-
-		// Handle negative differences
-		if temp.US < 0 {
-			temp.S--
-			temp.US += 1000000
+func sortOldToNew(one, two **Time, rt *RelTime) {
+	if (*one).ZoneType == TIMELIB_ZONETYPE_ID && (*two).ZoneType == TIMELIB_ZONETYPE_ID &&
+		(*one).TzInfo != nil && (*two).TzInfo != nil &&
+		(*one).TzInfo.Name == (*two).TzInfo.Name {
+		if (*one).Y > (*two).Y ||
+			((*one).Y == (*two).Y && (*one).M > (*two).M) ||
+			((*one).Y == (*two).Y && (*one).M == (*two).M && (*one).D > (*two).D) ||
+			((*one).Y == (*two).Y && (*one).M == (*two).M && (*one).D == (*two).D && (*one).H > (*two).H) ||
+			((*one).Y == (*two).Y && (*one).M == (*two).M && (*one).D == (*two).D && (*one).H == (*two).H && (*one).I > (*two).I) ||
+			((*one).Y == (*two).Y && (*one).M == (*two).M && (*one).D == (*two).D && (*one).H == (*two).H && (*one).I == (*two).I && (*one).S > (*two).S) ||
+			((*one).Y == (*two).Y && (*one).M == (*two).M && (*one).D == (*two).D && (*one).H == (*two).H && (*one).I == (*two).I && (*one).S == (*two).S && (*one).US > (*two).US) {
+			*one, *two = *two, *one
+			rt.Invert = true
 		}
-		if temp.S < 0 {
-			temp.I--
-			temp.S += 60
-		}
-		if temp.I < 0 {
-			temp.H--
-			temp.I += 60
-		}
-		if temp.H < 0 {
-			temp.D--
-			temp.H += 24
-		}
+		return
+	}
 
-		// Handle month/year overflow - only if we have negative months
-		if temp.M < 0 {
-			temp.Y--
-			temp.M += 12
+	if (*one).Sse > (*two).Sse ||
+		((*one).Sse == (*two).Sse && (*one).US > (*two).US) {
+		*one, *two = *two, *one
+		rt.Invert = true
+		return
+	}
+
+	if (*one).Sse == (*two).Sse && (*one).US == (*two).US {
+		if (*one).Y > (*two).Y ||
+			((*one).Y == (*two).Y && (*one).M > (*two).M) ||
+			((*one).Y == (*two).Y && (*one).M == (*two).M && (*one).D > (*two).D) ||
+			((*one).Y == (*two).Y && (*one).M == (*two).M && (*one).D == (*two).D && (*one).H > (*two).H) ||
+			((*one).Y == (*two).Y && (*one).M == (*two).M && (*one).D == (*two).D && (*one).H == (*two).H && (*one).I > (*two).I) ||
+			((*one).Y == (*two).Y && (*one).M == (*two).M && (*one).D == (*two).D && (*one).H == (*two).H && (*one).I == (*two).I && (*one).S > (*two).S) ||
+			((*one).Y == (*two).Y && (*one).M == (*two).M && (*one).D == (*two).D && (*one).H == (*two).H && (*one).I == (*two).I && (*one).S == (*two).S && (*one).US > (*two).US) {
+			*one, *two = *two, *one
+			rt.Invert = true
 		}
+	}
+}
 
-		// Handle day overflow - only if we have negative days
-		// For inverted (later - earlier with invert flag), use the EARLIER time's month
-		// This matches C's do_range_limit_days_relative with invert=1
-		if temp.D < 0 {
-			// Get days in current month of the "from" (earlier) time (other)
-			// C code uses the current month (not previous) when invert=1
-			temp.D += DaysInMonth(other.Y, other.M)
-			temp.M-- // Decrease month since we borrowed days
+func timelib_do_rel_normalize(base *Time, rt *RelTime) {
+	do_range_limit(0, 1000000, 1000000, &rt.US, &rt.S)
+	do_range_limit(0, 60, 60, &rt.S, &rt.I)
+	do_range_limit(0, 60, 60, &rt.I, &rt.H)
+	do_range_limit(0, 24, 24, &rt.H, &rt.D)
+	do_range_limit(0, 12, 12, &rt.M, &rt.Y)
 
-			// Handle month underflow after borrowing
-			if temp.M < 0 {
-				temp.Y--
-				temp.M += 12
+	baseY := base.Y
+	baseM := base.M
+	doRangeLimitDaysRelative(&baseY, &baseM, &rt.Y, &rt.M, &rt.D, rt.Invert)
+	do_range_limit(0, 12, 12, &rt.M, &rt.Y)
+}
+
+func diffWithTzid(one, two *Time) *RelTime {
+	rt := &RelTime{}
+	rt.Invert = false
+
+	sortOldToNew(&one, &two, rt)
+
+	dstCorr := two.Z - one.Z
+	dstHCorr := dstCorr / 3600
+	dstMCorr := (dstCorr % 3600) / 60
+
+	rt.Y = two.Y - one.Y
+	rt.M = two.M - one.M
+	rt.D = two.D - one.D
+	rt.H = two.H - one.H
+	rt.I = two.I - one.I
+	rt.S = two.S - one.S
+	rt.US = two.US - one.US
+
+	rt.Days = int64(timelib_diff_days(one, two))
+
+	if two.Sse < one.Sse {
+		flipped := int64Abs((rt.I*60)+(rt.S) - int64(dstCorr))
+		rt.H = flipped / 3600
+		rt.I = (flipped - rt.H*3600) / 60
+		rt.S = flipped % 60
+		rt.Invert = !rt.Invert
+	}
+
+	if rt.Invert {
+		timelib_do_rel_normalize(one, rt)
+	} else {
+		timelib_do_rel_normalize(two, rt)
+	}
+
+	if one.Dst == 1 && two.Dst == 0 {
+		if two.TzInfo != nil {
+			if (two.Sse-one.Sse+int64(dstCorr)) < 86400 {
+				rt.H -= int64(dstHCorr)
+				rt.I -= int64(dstMCorr)
 			}
 		}
-
-		// Calculate total days difference
-		temp.Days = int64(timelib_diff_days(other, t))
-		temp.Invert = true
-
-		return temp
-	}
-
-	diff := &RelTime{}
-
-	// Calculate differences (other is after t)
-	diff.Y = other.Y - t.Y
-	diff.M = other.M - t.M
-	diff.D = other.D - t.D
-	diff.H = other.H - t.H
-	diff.I = other.I - t.I
-	diff.S = other.S - t.S
-	diff.US = other.US - t.US
-
-	// Handle negative differences
-	if diff.US < 0 {
-		diff.S--
-		diff.US += 1000000
-	}
-	if diff.S < 0 {
-		diff.I--
-		diff.S += 60
-	}
-	if diff.I < 0 {
-		diff.H--
-		diff.I += 60
-	}
-	if diff.H < 0 {
-		diff.D--
-		diff.H += 24
-	}
-
-	// Handle month/year overflow - only if we have negative months
-	if diff.M < 0 {
-		diff.Y--
-		diff.M += 12
-	}
-
-	// Handle day overflow - only if we have negative days
-	// For normal (later - earlier), use the PREVIOUS month from the later time
-	// This matches C's do_range_limit_days_relative with invert=0
-	if diff.D < 0 {
-		// Get days in previous month of the "to" (later) time (other)
-		// C code decrements the month first when invert=0
-		prevMonth := other.M - 1
-		prevYear := other.Y
-		if prevMonth < 1 {
-			prevMonth += 12
-			prevYear--
+	} else if one.Dst == 0 && two.Dst == 1 {
+		if two.TzInfo != nil {
+			var transOffset int32
+			var transTransitionTime int64
+			success := getTimeZoneOffsetInfo(two.Sse, two.TzInfo, &transOffset, &transTransitionTime, nil)
+			if success &&
+				!((one.Sse+86400 > transTransitionTime) && (one.Sse+86400 <= (transTransitionTime+int64(dstCorr)))) &&
+				two.Sse >= transTransitionTime &&
+				((two.Sse-one.Sse+int64(dstCorr))%86400) > (two.Sse-transTransitionTime) {
+				rt.H -= int64(dstHCorr)
+				rt.I -= int64(dstMCorr)
+			}
 		}
-		diff.D += DaysInMonth(prevYear, prevMonth)
-		diff.M-- // Decrease month since we borrowed days
-
-		// Handle month underflow after borrowing
-		if diff.M < 0 {
-			diff.Y--
-			diff.M += 12
+	} else if two.Sse-one.Sse >= 86400 {
+		var transOffset int32
+		var transTransitionTime int64
+		if getTimeZoneOffsetInfo(two.Sse-int64(two.Z), two.TzInfo, &transOffset, &transTransitionTime, nil) {
+			dstCorr = one.Z - transOffset
+			if two.Sse >= transTransitionTime-int64(dstCorr) && two.Sse < transTransitionTime {
+				rt.D--
+				rt.H = 24
+			}
 		}
 	}
 
-	// Calculate total days difference
-	diff.Days = int64(timelib_diff_days(t, other))
+	return rt
+}
 
-	return diff
+func int64Abs(x int64) int64 {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+func (t *Time) Diff(other *Time) *RelTime {
+	if t.ZoneType == TIMELIB_ZONETYPE_ID && other.ZoneType == TIMELIB_ZONETYPE_ID &&
+		t.TzInfo != nil && other.TzInfo != nil &&
+		t.TzInfo.Name == other.TzInfo.Name {
+		return diffWithTzid(t, other)
+	}
+
+	rt := &RelTime{}
+	rt.Invert = false
+
+	one := t
+	two := other
+	sortOldToNew(&one, &two, rt)
+
+	rt.Y = two.Y - one.Y
+	rt.M = two.M - one.M
+	rt.D = two.D - one.D
+	rt.H = two.H - one.H
+	if one.ZoneType != TIMELIB_ZONETYPE_ID {
+		rt.H += int64(one.Dst)
+	}
+	if two.ZoneType != TIMELIB_ZONETYPE_ID {
+		rt.H -= int64(two.Dst)
+	}
+	rt.I = two.I - one.I
+	rt.S = two.S - one.S - int64(two.Z) + int64(one.Z)
+	rt.US = two.US - one.US
+
+	rt.Days = int64(timelib_diff_days(one, two))
+
+	if rt.Invert {
+		timelib_do_rel_normalize(one, rt)
+	} else {
+		timelib_do_rel_normalize(two, rt)
+	}
+
+	return rt
 }
 
 // DiffDays calculates the difference in full days between two times.
