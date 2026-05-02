@@ -132,6 +132,70 @@ func TestBasicDateParsing(t *testing.T) {
 	}
 }
 
+func TestEmptyStringParsing(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{
+			name:    "empty string",
+			input:   "",
+			wantErr: true,
+		},
+		{
+			name:    "whitespace only",
+			input:   "   ",
+			wantErr: true,
+		},
+		{
+			name:    "tab only",
+			input:   "\t",
+			wantErr: true,
+		},
+		{
+			name:    "newline only",
+			input:   "\n",
+			wantErr: true,
+		},
+		{
+			name:    "mixed whitespace",
+			input:   " \t\n \r ",
+			wantErr: true,
+		},
+		{
+			name:    "valid date with leading whitespace",
+			input:   " 2023-01-01",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			time, err := StrToTime(tt.input, nil)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("StrToTime() expected error for input %q, got nil", tt.input)
+					return
+				}
+				// For empty/whitespace strings, err should be a ParseError with empty string message
+				if _, ok := err.(*ParseError); !ok {
+					t.Errorf("StrToTime() expected ParseError for input %q, got %T", tt.input, err)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("StrToTime() unexpected error = %v", err)
+					return
+				}
+				if time == nil {
+					t.Error("StrToTime() returned nil time for valid input")
+				}
+			}
+		})
+	}
+}
+
 func TestTimestampParsing(t *testing.T) {
 	tests := []struct {
 		name    string

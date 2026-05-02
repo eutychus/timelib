@@ -203,6 +203,33 @@ func LoadTzFileFromDB(tzName string, tzdb *TzDB) ([]byte, string, error) {
 	return nil, "", fmt.Errorf("cannot find timezone file for '%s'", tzName)
 }
 
+// TimezoneIdIsValid checks whether a timezone identifier exists in the database.
+// This matches the C function: timelib_timezone_id_is_valid in parse_tz.c
+func TimezoneIdIsValid(timezone string, tzdb *TzDB) bool {
+	if tzdb == nil {
+		return false
+	}
+	for i := range tzdb.Index {
+		if tzdb.Index[i].ID == timezone {
+			return true
+		}
+	}
+	return false
+}
+
+// ZoneinfoDtor destroys a custom timezone database, freeing its resources.
+// This matches the C function: timelib_zoneinfo_dtor in parse_zoneinfo.c
+func ZoneinfoDtor(tzdb *TzDB) {
+	if tzdb == nil {
+		return
+	}
+	tzdb.Index = nil
+	tzdb.Data = nil
+	tzdb.IndexSize = 0
+	tzdb.Version = ""
+	tzdb.BaseDir = ""
+}
+
 // UpdateParseTzfile updates the ParseTzfile function to use the new parser
 func UpdateParseTzfile(timezone string, tzdb *TzDB, errorCode *int) (*TzInfo, error) {
 	// Try to load from database first

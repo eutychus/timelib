@@ -9,6 +9,12 @@ import (
 	"time"
 )
 
+// Library version constants
+const (
+	LibraryVersion = "2022.16-go"
+	TzdataVersion  = "2026.1"
+)
+
 // Constants from the original C library
 const (
 	TIMELIB_UNSET = -9999999

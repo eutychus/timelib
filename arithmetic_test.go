@@ -1,6 +1,7 @@
 package timelib
 
 import (
+	"math"
 	"testing"
 )
 
@@ -293,7 +294,7 @@ func TestTimelibDoNormalize(t *testing.T) {
 				S:  test.input.S,
 				US: test.input.US,
 			}
-			timelib_do_normalize(result)
+			DoNormalize(result)
 
 			if result.Y != test.expected.Y {
 				t.Errorf("Year: expected %d, got %d", test.expected.Y, result.Y)
@@ -419,5 +420,41 @@ func TestUnixtime2gmt(t *testing.T) {
 				t.Errorf("ZoneType: expected %d, got %d", test.expected.ZoneType, result.ZoneType)
 			}
 		})
+	}
+}
+
+func TestDiffDaysClamping(t *testing.T) {
+	// Test that DiffDays clamps to MaxInt32 for very large differences
+	// This matches the C UB fix from commit 2295fee
+	one := &Time{
+		Y: 1970, M: 1, D: 1,
+		H: 0, I: 0, S: 0,
+		Sse:         0,
+		SseUptodate: true,
+		ZoneType:    TIMELIB_ZONETYPE_OFFSET,
+		Z:           0,
+	}
+	two := &Time{
+		Y: 1970, M: 1, D: 1,
+		H: 0, I: 0, S: 0,
+		Sse:         int64(math.MaxInt32) * 86400 * 2,
+		SseUptodate: true,
+		ZoneType:    TIMELIB_ZONETYPE_OFFSET,
+		Z:           3600, // Different timezone to trigger the else branch
+	}
+
+	days := DiffDays(one, two)
+	if days != math.MaxInt32 {
+		t.Errorf("Expected DiffDays to clamp to MaxInt32 (%d), got %d", math.MaxInt32, days)
+	}
+}
+
+func TestDiffDaysSameTimezone(t *testing.T) {
+	one := &Time{Y: 2023, M: 6, D: 15, H: 10, I: 30, S: 0, ZoneType: TIMELIB_ZONETYPE_OFFSET, Z: 0}
+	two := &Time{Y: 2023, M: 6, D: 20, H: 10, I: 30, S: 0, ZoneType: TIMELIB_ZONETYPE_OFFSET, Z: 0}
+
+	days := DiffDays(one, two)
+	if days != 5 {
+		t.Errorf("Expected 5 days, got %d", days)
 	}
 }

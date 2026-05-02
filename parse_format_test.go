@@ -2070,6 +2070,56 @@ func TestParseFromFormatEdgeCases(t *testing.T) {
 	}
 }
 
+// TestTimezoneParenthesisBalancing tests PHP GH-17159 fix for parenthesis
+// balancing in timezone parsing with format specifiers
+func TestTimezoneParenthesisBalancing(t *testing.T) {
+	tests := []struct {
+		input    string
+		format   string
+		expected int32
+		desc     string
+	}{
+		{
+			input:    "((UTC)))",
+			format:   "e",
+			expected: 0,
+			desc:     "Double parens with extra closing paren - should consume only matching",
+		},
+		{
+			input:    "(UTC)",
+			format:   "e",
+			expected: 0,
+			desc:     "Single paren around UTC abbreviation",
+		},
+		{
+			input:    "((UTC))",
+			format:   "e",
+			expected: 0,
+			desc:     "Double parens around UTC",
+		},
+		{
+			input:    "(+02:00)",
+			format:   "P",
+			expected: 7200,
+			desc:     "Paren around numeric offset",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			result, errors := ParseFromFormat(test.format, test.input)
+
+			if errors.ErrorCount > 0 {
+				t.Logf("Errors: %v", errors.ErrorMessages)
+			}
+
+			if result.Z != test.expected {
+				t.Errorf("%s: expected Z=%d, got %d", test.desc, test.expected, result.Z)
+			}
+		})
+	}
+}
+
 // TestParseFromFormatNegativeYears tests negative year handling
 func TestParseFromFormatNegativeYears(t *testing.T) {
 	tests := []struct {

@@ -66,7 +66,7 @@ func initBuiltinTzDB() {
 	index := parseBuiltinIndex()
 
 	builtinTzDB = &TzDB{
-		Version:   "2025.2",
+		Version:   "2026.1",
 		IndexSize: len(index),
 		Index:     index,
 		Data:      builtinTzData,

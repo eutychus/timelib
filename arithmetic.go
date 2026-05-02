@@ -191,7 +191,7 @@ func diffWithTzid(one, two *Time) *RelTime {
 	rt.S = two.S - one.S
 	rt.US = two.US - one.US
 
-	rt.Days = int64(timelib_diff_days(one, two))
+	rt.Days = int64(DiffDays(one, two))
 
 	if two.Sse < one.Sse {
 		flipped := int64Abs((rt.I*60)+(rt.S) - int64(dstCorr))
@@ -277,7 +277,7 @@ func (t *Time) Diff(other *Time) *RelTime {
 	rt.S = two.S - one.S - int64(two.Z) + int64(one.Z)
 	rt.US = two.US - one.US
 
-	rt.Days = int64(timelib_diff_days(one, two))
+	rt.Days = int64(DiffDays(one, two))
 
 	if rt.Invert {
 		timelib_do_rel_normalize(one, rt)
@@ -292,7 +292,7 @@ func (t *Time) Diff(other *Time) *RelTime {
 // The result is the number of full days between 'one' and 'two'. It does take
 // into account 23 and 25 hour (and variants) days when the zone_type
 // is TIMELIB_ZONETYPE_ID and have the same TZID for 'one' and 'two'.
-func timelib_diff_days(one, two *Time) int {
+func DiffDays(one, two *Time) int {
 	// Matches C function: timelib_diff_days in interval.c
 	days := 0
 
@@ -329,10 +329,13 @@ func timelib_diff_days(one, two *Time) int {
 		}
 	} else {
 		// Different timezones: use timestamp difference
-		// FIXME: This truncates to avoid overflow
+		// C fix (2295fee): clamp to INT_MAX to avoid overflow
 		ddays := (one.Sse - two.Sse) / 86400.0
 		if ddays < 0 {
 			ddays = -ddays
+		}
+		if ddays > math.MaxInt32 {
+			ddays = math.MaxInt32
 		}
 		days = int(ddays)
 	}
@@ -340,7 +343,7 @@ func timelib_diff_days(one, two *Time) int {
 	return days
 }
 
-// timelib_do_normalize normalizes the time values (handles overflow/underflow)
+// DoNormalize normalizes the time values (handles overflow/underflow)
 // do_range_limit normalizes field 'a' to be within [start, end) and carries overflow/underflow to field 'b'
 // This matches the C implementation's do_range_limit function
 func do_range_limit(start, end, adj int64, a, b *int64) {
@@ -489,7 +492,10 @@ func magicDateCalc(t *Time) {
 	t.D = dd
 }
 
-func timelib_do_normalize(t *Time) {
+// DoNormalize normalizes a Time in-place, handling overflow/underflow of
+// time components (microseconds, seconds, minutes, hours, days, months).
+// This matches the C function: DoNormalize in tm2unixtime.c
+func DoNormalize(t *Time) {
 	if t.US != TIMELIB_UNSET {
 		do_range_limit(0, 1000000, 1000000, &t.US, &t.S)
 	}
@@ -875,7 +881,7 @@ func doAdjustRelative(t *Time) {
 		doAdjustForWeekday(t)
 	}
 
-	timelib_do_normalize(t)
+	DoNormalize(t)
 
 	if t.HaveRelative {
 		t.US += t.Relative.US
@@ -900,7 +906,7 @@ func doAdjustRelative(t *Time) {
 		t.M++
 	}
 
-	timelib_do_normalize(t)
+	DoNormalize(t)
 }
 
 // doAdjustSpecial handles special relative time adjustments (late)
@@ -912,7 +918,7 @@ func doAdjustSpecial(t *Time) {
 		}
 	}
 
-	timelib_do_normalize(t)
+	DoNormalize(t)
 	// Clear special relative
 	t.Relative.Special.Type = 0
 	t.Relative.Special.Amount = 0
@@ -988,7 +994,7 @@ func doAdjustSpecialEarly(t *Time) {
 		t.D = 0
 		t.M++
 	}
-	timelib_do_normalize(t)
+	DoNormalize(t)
 }
 
 // Unixtime2date converts Unix timestamp to date

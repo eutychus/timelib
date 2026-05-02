@@ -462,12 +462,12 @@ func (t *Time) AddWall(interval *RelTime) *Time {
 			// Add interval microseconds to base microseconds
 			result.US = baseUS + tempInterval.US*bias
 
-			timelib_do_normalize(result)
+			DoNormalize(result)
 			// Mark SSE as not up-to-date so UpdateTS will recalculate from normalized fields
 			result.SseUptodate = false
 			result.UpdateTS(nil)
 		}
-		timelib_do_normalize(result)
+		DoNormalize(result)
 	}
 
 	// If we have a timezone ID, set the timezone properly
@@ -546,12 +546,12 @@ func (t *Time) SubWall(interval *RelTime) *Time {
 			result.US -= tempInterval.US * bias
 
 			// Normalize the time fields
-			timelib_do_normalize(result)
+			DoNormalize(result)
 			result.UpdateTS(nil)
 		}
 
 		// Final normalization
-		timelib_do_normalize(result)
+		DoNormalize(result)
 	}
 
 	// Re-apply timezone if it's a timezone ID

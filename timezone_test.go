@@ -245,3 +245,37 @@ func TestTimezoneValidation(t *testing.T) {
 		t.Error("Expected invalid timezone to be rejected")
 	}
 }
+
+// TestZoneinfoDtor tests the ZoneinfoDtor function
+func TestZoneinfoDtor(t *testing.T) {
+	tzdb, err := ZoneinfoDir(filepath.Join("tests", "files"))
+	if err != nil {
+		t.Fatalf("Failed to load timezone directory: %v", err)
+	}
+
+	if tzdb == nil {
+		t.Fatal("Expected non-nil tzdb")
+	}
+
+	if len(tzdb.Index) == 0 {
+		t.Fatal("Expected non-empty index before destruction")
+	}
+
+	ZoneinfoDtor(tzdb)
+
+	if len(tzdb.Index) != 0 {
+		t.Error("Expected index to be cleared after destruction")
+	}
+	if len(tzdb.Data) != 0 {
+		t.Error("Expected data to be cleared after destruction")
+	}
+	if tzdb.IndexSize != 0 {
+		t.Error("Expected IndexSize to be 0 after destruction")
+	}
+}
+
+// TestZoneinfoDtorNil tests that ZoneinfoDtor handles nil gracefully
+func TestZoneinfoDtorNil(t *testing.T) {
+	// Should not panic
+	ZoneinfoDtor(nil)
+}

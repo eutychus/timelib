@@ -836,13 +836,27 @@ func (p *FormatParser) parseTimezoneOffset() bool {
 		return true
 	}
 
+	// PHP GH-17159: Track parenthesis balance for timezone identifiers
+	parenCount := 0
+	for p.position < len(p.input) && (p.input[p.position] == ' ' || p.input[p.position] == '\t' || p.input[p.position] == '(') {
+		if p.input[p.position] == '(' {
+			parenCount++
+		}
+		p.position++
+	}
+
 	// Handle 'Z' for UTC
-	if p.input[p.position] == 'Z' {
+	if p.position < len(p.input) && p.input[p.position] == 'Z' {
 		p.time.Z = 0
 		p.time.IsLocaltime = true
 		p.time.ZoneType = TIMELIB_ZONETYPE_OFFSET
 		p.time.HaveZone = true
 		p.position++
+		// Consume matching closing parentheses
+		for parenCount > 0 && p.position < len(p.input) && p.input[p.position] == ')' {
+			p.position++
+			parenCount--
+		}
 		return true
 	}
 
@@ -853,16 +867,32 @@ func (p *FormatParser) parseTimezoneOffset() bool {
 		p.time.ZoneType = TIMELIB_ZONETYPE_ABBR
 		p.time.HaveZone = true
 		p.time.TzAbbr = strings.ToUpper(abbrResult.Abbr)
+		// Consume matching closing parentheses
+		for parenCount > 0 && p.position < len(p.input) && p.input[p.position] == ')' {
+			p.position++
+			parenCount--
+		}
 		return true
 	}
 
 	// Try to parse as timezone identifier (e.g., Europe/Amsterdam, America/New_York)
 	if p.tryParseTzIdentifier() {
+		// Consume matching closing parentheses
+		for parenCount > 0 && p.position < len(p.input) && p.input[p.position] == ')' {
+			p.position++
+			parenCount--
+		}
 		return true
 	}
 
 	// Handle numeric timezone offset formats
-	return p.parseNumericTzOffset()
+	result := p.parseNumericTzOffset()
+	// Consume matching closing parentheses
+	for parenCount > 0 && p.position < len(p.input) && p.input[p.position] == ')' {
+		p.position++
+		parenCount--
+	}
+	return result
 }
 
 func (p *FormatParser) tryParseTzIdentifier() bool {

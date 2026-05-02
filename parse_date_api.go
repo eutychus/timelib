@@ -1,11 +1,15 @@
 package timelib
 
+import "strings"
+
 // ParseDateString parses a date/time string using the re2go-generated parser.
 // This is the main entry point for date parsing.
 func ParseDateString(str string, tzdb *TzDB, tzWrapper TzGetWrapper) (*Time, *ErrorContainer, error) {
 	// For empty strings, create an empty time structure with an error
 	// This matches C behavior where an empty string still returns a timelib_time*
-	if len(str) == 0 {
+	// PHP GH-19803: Also treat whitespace-only strings as empty
+	trimmed := strings.TrimSpace(str)
+	if len(trimmed) == 0 {
 		errContainer := &ErrorContainer{
 			ErrorCount: 1,
 			ErrorMessages: []ErrorMessage{
@@ -124,8 +128,7 @@ func isFatalParseError(errorCode int) bool {
 	case TIMELIB_ERR_DOUBLE_TZ,
 		TIMELIB_ERR_TZID_NOT_FOUND,
 		TIMELIB_ERR_DOUBLE_TIME,
-		TIMELIB_ERR_DOUBLE_DATE,
-		TIMELIB_ERR_EMPTY_STRING:
+		TIMELIB_ERR_DOUBLE_DATE:
 		return false
 	default:
 		return true

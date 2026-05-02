@@ -676,12 +676,14 @@ func TestCreateTimestampFromString(t *testing.T) {
 // testCreateTS is a helper function that mimics the C test logic
 func testCreateTS(t *testing.T, timeStr, refStr, tzid string, expectedSSE int64) {
 	// Parse the time string (use BuiltinDB to allow timezone parsing from string)
-	time, err := timelib.StrToTime(timeStr, timelib.BuiltinDB())
+	// Use ParseDateString directly to match C behavior where empty string errors
+	// are stored in the error container but do not abort parsing.
+	time, errors, err := timelib.ParseDateString(timeStr, timelib.BuiltinDB(), timelib.ParseTzfile)
 	if err != nil {
 		t.Fatalf("Failed to parse time string '%s': %v", timeStr, err)
 	}
 	if time == nil {
-		t.Fatalf("StrToTime returned nil for '%s'", timeStr)
+		t.Fatalf("ParseDateString returned nil for '%s'", timeStr)
 	}
 
 	// Parse the reference time if provided
@@ -697,6 +699,12 @@ func testCreateTS(t *testing.T, timeStr, refStr, tzid string, expectedSSE int64)
 
 		// Fill holes using reference time
 		timelib.FillHoles(time, now, timelib.TIMELIB_OVERRIDE_TIME)
+	}
+
+	// For empty/whitespace-only strings, the C test ignores the error and
+	// proceeds with FillHoles. Verify the error is present when expected.
+	if timeStr == "" && (errors == nil || errors.ErrorCount == 0) {
+		t.Fatalf("Expected empty string error for '%s'", timeStr)
 	}
 
 	// Parse timezone if provided

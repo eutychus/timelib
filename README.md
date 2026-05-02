@@ -5,10 +5,12 @@ Go port of the PHP timelib library for date/time parsing and timezone handling.
 ## Features
 
 - **Complete date/time parser** supporting multiple formats (ISO 8601, relative times, natural language, etc.)
-- **Full timezone support** with builtin timezone database (598 timezones, version 2025.2)
+- **Format-string parsing** (`ParseFromFormat`) compatible with PHP `date_create_from_format`
+- **Full timezone support** with builtin timezone database (598 timezones, version 2026.1)
 - **Timezone abbreviation resolution** (1,127 abbreviations including military timezones)
 - **Interval parsing** for ISO 8601 durations and recurring intervals
 - **Timezone transitions** with historical DST change tracking
+- **Date/time diff** with timezone and DST-aware calculations
 - **Arithmetic operations** on dates and times
 
 ## Installation
@@ -123,7 +125,7 @@ go test ./tests
    Extracted timezone database:
      Index: 598 entries
      Data: 355607 bytes
-     Version: 2025.2
+      Version: 2026.1
    ```
 
    This creates:
@@ -205,8 +207,8 @@ For more detailed information about the timezone database, see:
 ## Testing
 
 ```bash
-# Run all tests
-go test ./tests
+# Run all tests (root package + tests/ subpackage)
+go test ./...
 
 # Run specific test suites
 go test ./tests -run TestTimezone
@@ -218,16 +220,17 @@ go test ./tests -v
 
 ### Test Status
 
-- **All tests**: ✅ 667 tests passing, 0 failures, 0 skipped
+- **All tests**: ✅ ~3,150 tests passing, 0 failures, 0 skipped
 - **Success rate**: 100%
-- **Test coverage**: Comprehensive coverage of date/time parsing, timezone handling, arithmetic operations, and interval parsing
+- **Test coverage**: Comprehensive coverage of date/time parsing, timezone handling, arithmetic operations, interval parsing, and format-string parsing
+- **C alignment**: All 1,471 C timelib test cases have Go equivalents and pass
 
 The project is fully functional and ready for production use.
 
 ## Documentation
 
 - **Parser architecture**: See source code comments and test files for implementation details
-- **Timezone implementation**: Built-in timezone database with 598 timezones (version 2025.2)
+- **Timezone implementation**: Built-in timezone database with 598 timezones (version 2026.1)
 
 ## License
 

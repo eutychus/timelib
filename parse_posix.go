@@ -498,13 +498,13 @@ func CalculatePosixTransitionTime(year int, trans *PosixTransInfo, offset int64)
 		t.M = 1
 		t.D = int64(day)
 		// Normalize to get correct month/day
-		timelib_do_normalize(&t)
+		DoNormalize(&t)
 
 	case 2: // n - Julian day (0-365, with leap days)
 		t.Y = int64(year)
 		t.M = 1
 		t.D = int64(trans.Days + 1) // Days are 0-based
-		timelib_do_normalize(&t)
+		DoNormalize(&t)
 
 	case 3: // Mm.w.d - Month, week, day
 		t.Y = int64(year)
@@ -512,7 +512,7 @@ func CalculatePosixTransitionTime(year int, trans *PosixTransInfo, offset int64)
 		t.D = 1
 
 		// Find first day of month
-		timelib_do_normalize(&t)
+		DoNormalize(&t)
 
 		// Find first occurrence of dow
 		dow := int(DayOfWeek(t.Y, t.M, t.D))
@@ -531,17 +531,17 @@ func CalculatePosixTransitionTime(year int, trans *PosixTransInfo, offset int64)
 				t.Y++
 			}
 			t.D = 1
-			timelib_do_normalize(&t)
+			DoNormalize(&t)
 			t.D-- // Last day of previous month
-			timelib_do_normalize(&t)
+			DoNormalize(&t)
 
 			dow = int(DayOfWeek(t.Y, t.M, t.D))
 			daysToSubtract := (dow - targetDow + 7) % 7
 			t.D -= int64(daysToSubtract)
-			timelib_do_normalize(&t)
+			DoNormalize(&t)
 		} else {
 			t.D += int64(daysToAdd)
-			timelib_do_normalize(&t)
+			DoNormalize(&t)
 		}
 	}
 
