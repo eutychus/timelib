@@ -31,6 +31,9 @@ func ParseDateString(str string, tzdb *TzDB, tzWrapper TzGetWrapper) (*Time, *Er
 			US:  TIMELIB_UNSET,
 			Z:   TIMELIB_UNSET,
 			Dst: TIMELIB_UNSET,
+			Relative: RelTime{
+				Days: TIMELIB_UNSET,
+			},
 		}
 		return emptyTime, errContainer, nil
 	}
@@ -54,6 +57,9 @@ func ParseDateString(str string, tzdb *TzDB, tzWrapper TzGetWrapper) (*Time, *Er
 			US:  TIMELIB_UNSET,
 			Z:   TIMELIB_UNSET,
 			Dst: TIMELIB_UNSET,
+			Relative: RelTime{
+				Days: TIMELIB_UNSET,
+			},
 		},
 		tzdb: tzdb,
 	}
